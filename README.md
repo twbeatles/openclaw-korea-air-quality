@@ -25,12 +25,15 @@
 현재 버전에는 아래가 포함됩니다.
 
 - Open-Meteo 기반 대한민국 대기질 조회
-- 지역 alias 일부 지원 (`서울`, `성동구`, `분당`, `판교`, `영통`, `잠실` 등)
+- 지역 alias 확장 지원 (`서울`, `성동구`, `동대문구`, `답십리동`, `장안동`, `분당`, `판교`, `영통`, `잠실` 등)
 - 사용자 기본 지역 저장/조회
 - 여러 지역 비교 CLI
 - 위치 좌표 입력 시 캐시된 지역 후보 기준 nearest 해석 구조
 - 대기질 알림 규칙 추가/목록/점검 (`alert-add`, `alert-list`, `alert-check`)
+- 중복 알림 방지 상태 저장 (`alert-state.json`)
+- OpenClaw cron 초안 생성 (`cron-plan`)
 - 날씨 + 대기질 결합 아침 브리핑 (`morning-brief`)
+- 국내 API 확장용 provider 레이어 (`--provider openmeteo|airkorea`)
 
 ## 빠른 예시
 
@@ -66,13 +69,21 @@ python scripts/air_quality.py alert-check --user telegram:8209218742
 ### 아침 브리핑
 
 ```bash
-python scripts/air_quality.py morning-brief 성동구
+python scripts/air_quality.py morning-brief 답십리동
 python scripts/air_quality.py morning-brief --user telegram:8209218742
+```
+
+### OpenClaw cron 초안 생성
+
+```bash
+python scripts/air_quality.py cron-plan morning-brief telegram:8209218742 --region 답십리동 --hour 7 --minute 30 --json
+python scripts/air_quality.py cron-plan alert-check telegram:8209218742 --json
 ```
 
 ### 지역명 해석
 
 ```bash
+python scripts/air_quality.py resolve-region 답십리동 --json
 python scripts/air_quality.py resolve-region 판교 --json
 ```
 

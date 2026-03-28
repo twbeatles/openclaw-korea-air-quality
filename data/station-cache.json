@@ -54,6 +54,17 @@
       "latitude": 37.3826,
       "longitude": 127.1187,
       "timezone": "Asia/Seoul"
+    },
+    "서울특별시 동대문구 답십리동": {
+      "query": "답십리동",
+      "resolved_name": "답십리동",
+      "admin1": "서울특별시",
+      "admin2": "동대문구",
+      "admin3": "답십리동",
+      "country": "대한민국",
+      "latitude": 37.5666,
+      "longitude": 127.0569,
+      "timezone": "Asia/Seoul"
     }
   }
 }
