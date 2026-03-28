@@ -35,6 +35,7 @@
 - OpenClaw cron 초안 생성 (`cron-plan`)
 - 날씨 + 대기질 결합 아침 브리핑 (`morning-brief`)
 - 국내 API 확장용 provider 레이어 및 설정 (`--provider openmeteo|airkorea`, `setup-provider`, `show-config`)
+- AirKorea 시도 단위 실시간 측정값 fallback 파싱(JSON/XML)
 
 ## 빠른 예시
 

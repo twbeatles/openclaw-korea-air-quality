@@ -11,15 +11,21 @@ Open-Meteo 기반 프로토타입 이후, 국내 대기질 API를 붙일 때 필
 
 ## 구현 방향
 
-현재 스킬은 `provider` 개념을 도입해 `openmeteo` 와 `airkorea` 같은 공급자를 구분할 수 있게 확장할 수 있다.
+현재 스킬은 `provider` 개념을 도입해 `openmeteo` 와 `airkorea` 같은 공급자를 구분할 수 있게 확장되어 있다.
 
-권장 단계:
+현재 상태:
 
-1. 공공 API 인증 정보 저장 방식 결정
-2. 지역/측정소 검색 API 연결
-3. 실시간 측정값 정규화
-4. 예보 데이터 정규화
-5. Open-Meteo와 동일한 summary 스키마로 매핑
+1. `AIRKOREA_API_KEY` 또는 `data/config.json`의 `airkorea_api_key` 를 읽는다.
+2. AirKorea 시도 단위 실시간 측정 API를 호출한다.
+3. JSON 응답을 우선 시도하고, 필요하면 XML도 파싱한다.
+4. 지역명과 비슷한 측정소가 있으면 우선 선택하고, 없으면 값이 있는 첫 항목을 사용한다.
+5. OpenClaw summary 스키마로 매핑한다.
+
+남은 과제:
+
+- 측정소 좌표 기반 nearest station 정밀 매칭
+- 권역 예보 API 연결
+- 시도 단위 fallback보다 더 촘촘한 지역별 정확도 개선
 
 ## 필요한 설정 예시
 

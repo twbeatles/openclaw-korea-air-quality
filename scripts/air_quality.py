@@ -6,6 +6,7 @@ import math
 import os
 import urllib.parse
 import urllib.request
+import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
@@ -136,11 +137,35 @@ def save_config(payload: Dict[str, Any]) -> None:
     _write_json(CONFIG_PATH, payload)
 
 
-def fetch_json(url: str, params: Dict[str, Any]) -> Dict[str, Any]:
+def fetch_text(url: str, params: Dict[str, Any]) -> str:
     query = urllib.parse.urlencode({k: v for k, v in params.items() if v is not None})
-    req = urllib.request.Request(f"{url}?{query}", headers={"User-Agent": "OpenClaw-Korea-Air-Quality/0.4"})
+    req = urllib.request.Request(f"{url}?{query}", headers={"User-Agent": "OpenClaw-Korea-Air-Quality/0.5"})
     with urllib.request.urlopen(req, timeout=20) as response:
-        return json.loads(response.read().decode("utf-8"))
+        return response.read().decode("utf-8")
+
+
+def fetch_json(url: str, params: Dict[str, Any]) -> Dict[str, Any]:
+    return json.loads(fetch_text(url, params))
+
+
+def parse_xml_items(xml_text: str) -> List[Dict[str, Any]]:
+    root = ET.fromstring(xml_text)
+    items: List[Dict[str, Any]] = []
+    for item in root.findall('.//item'):
+        row: Dict[str, Any] = {}
+        for child in item:
+            row[child.tag] = (child.text or '').strip()
+        items.append(row)
+    return items
+
+
+def _to_float(value: Any) -> float | None:
+    try:
+        if value in (None, "", "-", "null"):
+            return None
+        return float(value)
+    except Exception:
+        return None
 
 
 def normalize_region_name(region: str) -> str:
@@ -154,12 +179,87 @@ def resolve_provider(explicit_provider: str | None) -> str:
     return load_config().get("provider", "openmeteo")
 
 
-def fetch_airkorea_air_quality(lat: float, lon: float, timezone: str = "Asia/Seoul") -> Dict[str, Any]:
+def _airkorea_sido_name(region: Dict[str, Any] | None) -> str:
+    admin1 = (region or {}).get("admin1") or "서울특별시"
+    mapping = {
+        "서울특별시": "서울",
+        "부산광역시": "부산",
+        "대구광역시": "대구",
+        "인천광역시": "인천",
+        "광주광역시": "광주",
+        "대전광역시": "대전",
+        "울산광역시": "울산",
+        "세종특별자치시": "세종",
+        "제주특별자치도": "제주",
+        "경기도": "경기",
+        "강원특별자치도": "강원",
+        "충청북도": "충북",
+        "충청남도": "충남",
+        "전북특별자치도": "전북",
+        "전라남도": "전남",
+        "경상북도": "경북",
+        "경상남도": "경남",
+    }
+    return mapping.get(admin1, admin1.replace("특별시", "").replace("광역시", "").replace("특별자치도", "").replace("특별자치시", "").replace("도", ""))
+
+
+def fetch_airkorea_air_quality(lat: float, lon: float, timezone: str = "Asia/Seoul", region: Dict[str, Any] | None = None) -> Dict[str, Any]:
     cfg = load_config()
     api_key = os.getenv("AIRKOREA_API_KEY") or cfg.get("airkorea_api_key")
     if not api_key:
         raise ValueError("AIRKOREA_API_KEY 또는 config.json의 airkorea_api_key 가 없어 airkorea provider를 사용할 수 없습니다. 현재는 openmeteo provider를 사용하세요.")
-    raise NotImplementedError("airkorea provider 연결 레이어는 준비됐지만 실제 API 매핑은 다음 단계에서 이어서 구현합니다.")
+
+    service_key = urllib.parse.unquote(str(api_key))
+    sido_name = _airkorea_sido_name(region)
+    url = "https://apis.data.go.kr/B552584/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty"
+    params = {
+        "serviceKey": service_key,
+        "returnType": "json",
+        "numOfRows": 100,
+        "pageNo": 1,
+        "sidoName": sido_name,
+        "ver": "1.0",
+    }
+
+    payload: Dict[str, Any] | None = None
+    items: List[Dict[str, Any]] = []
+    try:
+        payload = fetch_json(url, params)
+        items = (((payload or {}).get("response") or {}).get("body") or {}).get("items") or []
+    except Exception:
+        xml_text = fetch_text(url, {k: v for k, v in params.items() if k != "returnType"})
+        items = parse_xml_items(xml_text)
+
+    if not items:
+        raise ValueError(f"AirKorea 응답에서 측정 항목을 찾지 못했습니다: sido={sido_name}")
+
+    preferred_station = ((region or {}).get("resolved_name") or "").replace("동", "").replace("구", "")
+    chosen = None
+    if preferred_station:
+        for item in items:
+            station_name = str(item.get("stationName") or "")
+            if preferred_station and preferred_station in station_name:
+                chosen = item
+                break
+    if chosen is None:
+        for item in items:
+            if item.get("pm25Value") not in (None, "", "-") or item.get("pm10Value") not in (None, "", "-"):
+                chosen = item
+                break
+    if chosen is None:
+        chosen = items[0]
+
+    return {
+        "time": chosen.get("dataTime") or chosen.get("dataTm"),
+        "pm10": _to_float(chosen.get("pm10Value")),
+        "pm2_5": _to_float(chosen.get("pm25Value")),
+        "ozone": _to_float(chosen.get("o3Value")),
+        "us_aqi": None,
+        "european_aqi": None,
+        "provider": "airkorea",
+        "station_name": chosen.get("stationName"),
+        "sido_name": sido_name,
+    }
 
 
 def geocode_region(region: str) -> Dict[str, Any]:
@@ -219,10 +319,10 @@ def fetch_openmeteo_air_quality(lat: float, lon: float, timezone: str = "Asia/Se
     return {"time": current.get("time"), "pm10": current.get("pm10"), "pm2_5": current.get("pm2_5"), "ozone": current.get("ozone"), "us_aqi": current.get("us_aqi"), "european_aqi": current.get("european_aqi"), "provider": "openmeteo"}
 
 
-def fetch_air_quality(lat: float, lon: float, timezone: str = "Asia/Seoul", provider: str | None = None) -> Dict[str, Any]:
+def fetch_air_quality(lat: float, lon: float, timezone: str = "Asia/Seoul", provider: str | None = None, region: Dict[str, Any] | None = None) -> Dict[str, Any]:
     resolved_provider = resolve_provider(provider)
     if resolved_provider == "airkorea":
-        return fetch_airkorea_air_quality(lat, lon, timezone)
+        return fetch_airkorea_air_quality(lat, lon, timezone, region=region)
     return fetch_openmeteo_air_quality(lat, lon, timezone)
 
 
@@ -352,7 +452,7 @@ def build_cron_plan(kind: str, user: str, region: str | None, metric: str | None
 
 def cmd_now(args: argparse.Namespace) -> int:
     region, source = resolve_region(args)
-    air = fetch_air_quality(float(region["latitude"]), float(region["longitude"]), region.get("timezone", "Asia/Seoul"), provider=args.provider)
+    air = fetch_air_quality(float(region["latitude"]), float(region["longitude"]), region.get("timezone", "Asia/Seoul"), provider=args.provider, region=region)
     summary = build_summary(region, air, source)
     print(json.dumps(summary, ensure_ascii=False, indent=2) if args.json else render_text(summary))
     return 0
@@ -360,7 +460,7 @@ def cmd_now(args: argparse.Namespace) -> int:
 
 def cmd_morning_brief(args: argparse.Namespace) -> int:
     region, source = resolve_region(args)
-    air = fetch_air_quality(float(region["latitude"]), float(region["longitude"]), region.get("timezone", "Asia/Seoul"), provider=args.provider)
+    air = fetch_air_quality(float(region["latitude"]), float(region["longitude"]), region.get("timezone", "Asia/Seoul"), provider=args.provider, region=region)
     summary = build_summary(region, air, source)
     weather = fetch_weather(float(region["latitude"]), float(region["longitude"]), region.get("timezone", "Asia/Seoul"))
     brief = build_morning_brief(summary, weather)
@@ -411,7 +511,7 @@ def cmd_alert_check(args: argparse.Namespace) -> int:
     hits = []
     for rule in rules:
         region = geocode_region(rule["region"])
-        air = fetch_air_quality(float(region["latitude"]), float(region["longitude"]), region.get("timezone", "Asia/Seoul"), provider=args.provider)
+        air = fetch_air_quality(float(region["latitude"]), float(region["longitude"]), region.get("timezone", "Asia/Seoul"), provider=args.provider, region=region)
         summary = build_summary(region, air, "alert-check")
         if not alert_matches(summary, rule["metric"], rule["threshold"]):
             continue
@@ -497,7 +597,7 @@ def cmd_compare(args: argparse.Namespace) -> int:
     results = []
     for region_name in args.regions:
         region = geocode_region(region_name)
-        air = fetch_air_quality(float(region["latitude"]), float(region["longitude"]), region.get("timezone", "Asia/Seoul"), provider=args.provider)
+        air = fetch_air_quality(float(region["latitude"]), float(region["longitude"]), region.get("timezone", "Asia/Seoul"), provider=args.provider, region=region)
         results.append(build_summary(region, air, "query"))
     if args.json:
         print(json.dumps(results, ensure_ascii=False, indent=2))
