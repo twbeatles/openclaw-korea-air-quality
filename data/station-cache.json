@@ -1,0 +1,59 @@
+{
+  "regions": {
+    "서울특별시": {
+      "query": "서울",
+      "resolved_name": "서울특별시",
+      "admin1": "서울특별시",
+      "admin2": null,
+      "admin3": null,
+      "country": "대한민국",
+      "latitude": 37.566,
+      "longitude": 126.9784,
+      "timezone": "Asia/Seoul"
+    },
+    "수원": {
+      "query": "수원",
+      "resolved_name": "수원",
+      "admin1": "전라북도",
+      "admin2": "고창군",
+      "admin3": "공음면",
+      "country": "대한민국",
+      "latitude": 35.35881,
+      "longitude": 126.53487,
+      "timezone": "Asia/Seoul"
+    },
+    "인천광역시": {
+      "query": "인천",
+      "resolved_name": "인천광역시",
+      "admin1": "인천광역시",
+      "admin2": null,
+      "admin3": null,
+      "country": "대한민국",
+      "latitude": 37.45646,
+      "longitude": 126.70515,
+      "timezone": "Asia/Seoul"
+    },
+    "서울특별시 성동구": {
+      "query": "성동구",
+      "resolved_name": "성동구",
+      "admin1": "서울특별시",
+      "admin2": "성동구",
+      "admin3": null,
+      "country": "대한민국",
+      "latitude": 37.5636,
+      "longitude": 127.0365,
+      "timezone": "Asia/Seoul"
+    },
+    "성남시 분당구": {
+      "query": "분당",
+      "resolved_name": "분당구",
+      "admin1": "경기도",
+      "admin2": "성남시 분당구",
+      "admin3": null,
+      "country": "대한민국",
+      "latitude": 37.3826,
+      "longitude": 127.1187,
+      "timezone": "Asia/Seoul"
+    }
+  }
+}

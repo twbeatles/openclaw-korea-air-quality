@@ -1,0 +1,7 @@
+{
+  "users": {
+    "test-user": {
+      "default_region": "성동구"
+    }
+  }
+}
