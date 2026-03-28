@@ -1,0 +1,19 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Local runtime state
+/data/alert-rules.json
+/data/alert-state.json
+/data/station-cache.json
+/data/user-preferences.json
+
+# Local secrets / provider overrides
+/data/config.local.json
+.env
+.env.*
+
+# Test / tool caches
+.pytest_cache/
+.mypy_cache/
