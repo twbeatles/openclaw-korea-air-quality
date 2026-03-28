@@ -99,6 +99,35 @@ python scripts/air_quality.py show-config --json
 python scripts/air_quality.py now 답십리동 --provider airkorea
 ```
 
+## AirKorea OpenAPI 키 발급 받기
+
+AirKorea 실측값을 쓰려면 공공데이터포털에서 OpenAPI 활용신청 후 서비스키를 발급받아야 한다.
+
+권장 순서:
+1. 공공데이터포털(data.go.kr)에 로그인
+2. AirKorea/대기질 관련 API 페이지로 이동
+   - 실시간 대기질 조회 계열: `ArpltnInforInqireSvc`
+   - 측정소 정보 계열: `MsrstnInfoInqireSvc`
+3. 원하는 API에 대해 **활용신청** 진행
+4. 승인 후 **일반 인증키**를 확인
+   - Encoding / Decoding 중 하나를 사용할 수 있지만, 구현/환경에 따라 차이가 날 수 있으니 둘 다 확인해 두는 것을 권장
+5. 아래처럼 스킬에 저장
+
+```bash
+python scripts/air_quality.py setup-provider airkorea --airkorea-api-key "발급받은서비스키" --json
+```
+
+확인:
+
+```bash
+python scripts/air_quality.py show-config --json
+python scripts/air_quality.py now 답십리동 --provider airkorea
+```
+
+참고:
+- 활용신청 직후에는 권한 반영이 바로 안 될 수 있다.
+- `ArpltnInforInqireSvc` 와 `MsrstnInfoInqireSvc` 는 같은 에어코리아 계열이지만 서비스군이 다를 수 있어, 필요한 API별로 신청 상태를 확인하는 것이 안전하다.
+
 ## 지역 해석 예시
 
 ```bash
