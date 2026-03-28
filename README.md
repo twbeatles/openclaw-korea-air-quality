@@ -27,13 +27,14 @@
 - Open-Meteo 기반 대한민국 대기질 조회
 - 지역 alias 확장 지원 (`서울`, `성동구`, `동대문구`, `답십리동`, `장안동`, `분당`, `판교`, `영통`, `잠실` 등)
 - 사용자 기본 지역 저장/조회
+- 사용자 기본 위치 좌표 저장/조회 (`save-location`, `show-default`)
 - 여러 지역 비교 CLI
 - 위치 좌표 입력 시 캐시된 지역 후보 기준 nearest 해석 구조
 - 대기질 알림 규칙 추가/목록/점검 (`alert-add`, `alert-list`, `alert-check`)
 - 중복 알림 방지 상태 저장 (`alert-state.json`)
 - OpenClaw cron 초안 생성 (`cron-plan`)
 - 날씨 + 대기질 결합 아침 브리핑 (`morning-brief`)
-- 국내 API 확장용 provider 레이어 (`--provider openmeteo|airkorea`)
+- 국내 API 확장용 provider 레이어 및 설정 (`--provider openmeteo|airkorea`, `setup-provider`, `show-config`)
 
 ## 빠른 예시
 
@@ -44,10 +45,11 @@ python scripts/air_quality.py now 서울
 python scripts/air_quality.py now 성동구 --json
 ```
 
-### 기본 지역 저장
+### 기본 지역 / 위치 저장
 
 ```bash
-python scripts/air_quality.py save-default telegram:8209218742 성동구
+python scripts/air_quality.py save-default telegram:8209218742 답십리동
+python scripts/air_quality.py save-location telegram:8209218742 37.5666 127.0569 --label 답십리동
 python scripts/air_quality.py show-default telegram:8209218742 --json
 python scripts/air_quality.py now --user telegram:8209218742
 ```
@@ -78,6 +80,13 @@ python scripts/air_quality.py morning-brief --user telegram:8209218742
 ```bash
 python scripts/air_quality.py cron-plan morning-brief telegram:8209218742 --region 답십리동 --hour 7 --minute 30 --json
 python scripts/air_quality.py cron-plan alert-check telegram:8209218742 --json
+```
+
+### provider 설정
+
+```bash
+python scripts/air_quality.py setup-provider openmeteo --json
+python scripts/air_quality.py show-config --json
 ```
 
 ### 지역명 해석

@@ -1,7 +1,12 @@
 {
   "users": {
     "test-user": {
-      "default_region": "성동구"
+      "default_region": "성동구",
+      "default_location": {
+        "lat": 37.5666,
+        "lon": 127.0569,
+        "label": "답십리동"
+      }
     }
   }
 }

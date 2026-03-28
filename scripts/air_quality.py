@@ -16,6 +16,7 @@ PREFERENCES_PATH = DATA_DIR / "user-preferences.json"
 STATION_CACHE_PATH = DATA_DIR / "station-cache.json"
 ALERT_RULES_PATH = DATA_DIR / "alert-rules.json"
 ALERT_STATE_PATH = DATA_DIR / "alert-state.json"
+CONFIG_PATH = DATA_DIR / "config.json"
 
 OPENMETEO_GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 OPENMETEO_AIR_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
@@ -127,9 +128,17 @@ def save_alert_state(payload: Dict[str, Any]) -> None:
     _write_json(ALERT_STATE_PATH, payload)
 
 
+def load_config() -> Dict[str, Any]:
+    return _read_json(CONFIG_PATH, {"provider": "openmeteo", "airkorea_api_key": None})
+
+
+def save_config(payload: Dict[str, Any]) -> None:
+    _write_json(CONFIG_PATH, payload)
+
+
 def fetch_json(url: str, params: Dict[str, Any]) -> Dict[str, Any]:
     query = urllib.parse.urlencode({k: v for k, v in params.items() if v is not None})
-    req = urllib.request.Request(f"{url}?{query}", headers={"User-Agent": "OpenClaw-Korea-Air-Quality/0.3"})
+    req = urllib.request.Request(f"{url}?{query}", headers={"User-Agent": "OpenClaw-Korea-Air-Quality/0.4"})
     with urllib.request.urlopen(req, timeout=20) as response:
         return json.loads(response.read().decode("utf-8"))
 
@@ -139,10 +148,17 @@ def normalize_region_name(region: str) -> str:
     return REGION_ALIASES.get(cleaned, cleaned)
 
 
+def resolve_provider(explicit_provider: str | None) -> str:
+    if explicit_provider:
+        return explicit_provider
+    return load_config().get("provider", "openmeteo")
+
+
 def fetch_airkorea_air_quality(lat: float, lon: float, timezone: str = "Asia/Seoul") -> Dict[str, Any]:
-    api_key = os.getenv("AIRKOREA_API_KEY")
+    cfg = load_config()
+    api_key = os.getenv("AIRKOREA_API_KEY") or cfg.get("airkorea_api_key")
     if not api_key:
-        raise ValueError("AIRKOREA_API_KEY가 없어 airkorea provider를 사용할 수 없습니다. 현재는 openmeteo provider를 사용하세요.")
+        raise ValueError("AIRKOREA_API_KEY 또는 config.json의 airkorea_api_key 가 없어 airkorea provider를 사용할 수 없습니다. 현재는 openmeteo provider를 사용하세요.")
     raise NotImplementedError("airkorea provider 연결 레이어는 준비됐지만 실제 API 매핑은 다음 단계에서 이어서 구현합니다.")
 
 
@@ -203,8 +219,9 @@ def fetch_openmeteo_air_quality(lat: float, lon: float, timezone: str = "Asia/Se
     return {"time": current.get("time"), "pm10": current.get("pm10"), "pm2_5": current.get("pm2_5"), "ozone": current.get("ozone"), "us_aqi": current.get("us_aqi"), "european_aqi": current.get("european_aqi"), "provider": "openmeteo"}
 
 
-def fetch_air_quality(lat: float, lon: float, timezone: str = "Asia/Seoul", provider: str = "openmeteo") -> Dict[str, Any]:
-    if provider == "airkorea":
+def fetch_air_quality(lat: float, lon: float, timezone: str = "Asia/Seoul", provider: str | None = None) -> Dict[str, Any]:
+    resolved_provider = resolve_provider(provider)
+    if resolved_provider == "airkorea":
         return fetch_airkorea_air_quality(lat, lon, timezone)
     return fetch_openmeteo_air_quality(lat, lon, timezone)
 
@@ -270,10 +287,15 @@ def resolve_region(args: argparse.Namespace) -> Tuple[Dict[str, Any], str]:
         return geocode_region(args.region), "query"
     if getattr(args, "user", None):
         prefs = load_preferences()
-        default_region = prefs.get("users", {}).get(args.user, {}).get("default_region")
-        if default_region:
-            return geocode_region(default_region), "saved-default"
-    raise ValueError("지역을 확인할 수 없습니다. 지역명을 입력하거나 저장된 기본 지역을 사용하세요.")
+        user_info = prefs.get("users", {}).get(args.user, {})
+        if user_info.get("default_location"):
+            lat = float(user_info["default_location"]["lat"])
+            lon = float(user_info["default_location"]["lon"])
+            region = nearest_known_region(lat, lon)
+            return region, "saved-location"
+        if user_info.get("default_region"):
+            return geocode_region(user_info["default_region"]), "saved-default"
+    raise ValueError("지역을 확인할 수 없습니다. 지역명을 입력하거나 저장된 기본 지역/좌표를 사용하세요.")
 
 
 def build_summary(region: Dict[str, Any], air: Dict[str, Any], source: str) -> Dict[str, Any]:
@@ -317,11 +339,13 @@ def build_hit_signature(rule: Dict[str, Any], summary: Dict[str, Any]) -> str:
 def build_cron_plan(kind: str, user: str, region: str | None, metric: str | None, threshold: str | None, hour: int | None, minute: int | None) -> Dict[str, Any]:
     if kind == "morning-brief":
         schedule_expr = f"{minute or 0} {hour or 7} * * *"
-        message = f"C:\\Users\\김태완\\.openclaw\\workspace\\skills\\korea-air-quality 에서 `python scripts/air_quality.py morning-brief {region or ''} --user {user}` 를 실행해. 결과를 한국어로 그대로 전달해."
+        command = f"python scripts/air_quality.py morning-brief {region or ''} --user {user}".strip()
+        message = f"C:\\Users\\김태완\\.openclaw\\workspace\\skills\\korea-air-quality 에서 `{command}` 를 실행해. 결과를 한국어로 그대로 전달해."
         name = f"대기질 아침 브리핑 ({user})"
     else:
         schedule_expr = f"{minute or 0} * * * *"
-        message = f"C:\\Users\\김태완\\.openclaw\\workspace\\skills\\korea-air-quality 에서 `python scripts/air_quality.py alert-check --user {user} --json` 를 실행해. 신규 hit만 한국어로 알려줘. 신규 hit가 없으면 정확히 NO_REPLY 만 출력해."
+        command = f"python scripts/air_quality.py alert-check --user {user} --json"
+        message = f"C:\\Users\\김태완\\.openclaw\\workspace\\skills\\korea-air-quality 에서 `{command}` 를 실행해. 신규 hit만 한국어로 알려줘. 신규 hit가 없으면 정확히 NO_REPLY 만 출력해."
         name = f"대기질 알림 점검 ({user})"
     return {"name": name, "schedule": {"kind": "cron", "expr": schedule_expr, "tz": "Asia/Seoul"}, "payload": {"kind": "agentTurn", "message": message, "timeoutSeconds": 120}, "sessionTarget": "current", "delivery": {"mode": "announce"}, "notes": {"kind": kind, "region": region, "metric": metric, "threshold": threshold}}
 
@@ -416,6 +440,53 @@ def cmd_cron_plan(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_save_default(args: argparse.Namespace) -> int:
+    prefs = load_preferences()
+    users = prefs.setdefault("users", {})
+    info = users.setdefault(args.user, {})
+    info["default_region"] = args.region
+    save_preferences(prefs)
+    print(f"기본 지역 저장 완료: {args.user} -> {args.region}")
+    return 0
+
+
+def cmd_save_location(args: argparse.Namespace) -> int:
+    prefs = load_preferences()
+    users = prefs.setdefault("users", {})
+    info = users.setdefault(args.user, {})
+    info["default_location"] = {"lat": args.lat, "lon": args.lon, "label": args.label}
+    save_preferences(prefs)
+    print(f"기본 위치 저장 완료: {args.user} -> ({args.lat}, {args.lon})" + (f" / {args.label}" if args.label else ""))
+    return 0
+
+
+def cmd_show_default(args: argparse.Namespace) -> int:
+    prefs = load_preferences()
+    info = prefs.get("users", {}).get(args.user, {})
+    payload = {"user": args.user, "default_region": info.get("default_region"), "default_location": info.get("default_location")}
+    print(json.dumps(payload, ensure_ascii=False, indent=2) if args.json else (json.dumps(payload, ensure_ascii=False) if info else "저장된 기본 설정이 없습니다."))
+    return 0
+
+
+def cmd_setup_provider(args: argparse.Namespace) -> int:
+    cfg = load_config()
+    cfg["provider"] = args.provider
+    if args.airkorea_api_key is not None:
+        cfg["airkorea_api_key"] = args.airkorea_api_key
+    save_config(cfg)
+    print(json.dumps(cfg, ensure_ascii=False, indent=2) if args.json else f"기본 provider 저장 완료: {args.provider}")
+    return 0
+
+
+def cmd_show_config(args: argparse.Namespace) -> int:
+    cfg = load_config()
+    redacted = dict(cfg)
+    if redacted.get("airkorea_api_key"):
+        redacted["airkorea_api_key"] = "***configured***"
+    print(json.dumps(redacted, ensure_ascii=False, indent=2) if args.json else f"provider={redacted.get('provider')} airkorea_api_key={redacted.get('airkorea_api_key')}")
+    return 0
+
+
 def cmd_resolve_region(args: argparse.Namespace) -> int:
     region = geocode_region(args.region)
     print(json.dumps(region, ensure_ascii=False, indent=2) if args.json else f"{args.region} -> {region['resolved_name']} ({region['latitude']}, {region['longitude']})")
@@ -436,24 +507,8 @@ def cmd_compare(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_save_default(args: argparse.Namespace) -> int:
-    prefs = load_preferences()
-    users = prefs.setdefault("users", {})
-    users[args.user] = {"default_region": args.region}
-    save_preferences(prefs)
-    print(f"기본 지역 저장 완료: {args.user} -> {args.region}")
-    return 0
-
-
-def cmd_show_default(args: argparse.Namespace) -> int:
-    prefs = load_preferences()
-    region = prefs.get("users", {}).get(args.user, {}).get("default_region")
-    print(json.dumps({"user": args.user, "default_region": region}, ensure_ascii=False, indent=2) if args.json else (region or "저장된 기본 지역이 없습니다."))
-    return 0
-
-
 def add_provider_args(p: argparse.ArgumentParser) -> None:
-    p.add_argument("--provider", choices=["openmeteo", "airkorea"], default="openmeteo")
+    p.add_argument("--provider", choices=["openmeteo", "airkorea"])
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -494,10 +549,27 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("region")
     p.set_defaults(func=cmd_save_default)
 
-    p = sub.add_parser("show-default", help="사용자 기본 지역 조회")
+    p = sub.add_parser("save-location", help="사용자 기본 위치 좌표 저장")
+    p.add_argument("user")
+    p.add_argument("lat", type=float)
+    p.add_argument("lon", type=float)
+    p.add_argument("--label")
+    p.set_defaults(func=cmd_save_location)
+
+    p = sub.add_parser("show-default", help="사용자 기본 지역/위치 조회")
     p.add_argument("user")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_show_default)
+
+    p = sub.add_parser("setup-provider", help="기본 provider 및 국내 API 키 저장")
+    p.add_argument("provider", choices=["openmeteo", "airkorea"])
+    p.add_argument("--airkorea-api-key")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_setup_provider)
+
+    p = sub.add_parser("show-config", help="provider 설정 조회")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_show_config)
 
     p = sub.add_parser("alert-add", help="대기질 알림 규칙 추가")
     p.add_argument("user")
