@@ -1,0 +1,12 @@
+{
+  "rules": [
+    {
+      "id": 1,
+      "user": "test-user",
+      "region": "성동구",
+      "metric": "pm2_5",
+      "threshold": "나쁨",
+      "created_at": "2026-03-28T15:00:12"
+    }
+  ]
+}

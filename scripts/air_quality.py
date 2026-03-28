@@ -13,9 +13,11 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = BASE_DIR / "data"
 PREFERENCES_PATH = DATA_DIR / "user-preferences.json"
 STATION_CACHE_PATH = DATA_DIR / "station-cache.json"
+ALERT_RULES_PATH = DATA_DIR / "alert-rules.json"
 
 OPENMETEO_GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 OPENMETEO_AIR_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
+OPENMETEO_WEATHER_URL = "https://api.open-meteo.com/v1/forecast"
 
 REGION_ALIASES = {
     "서울": "서울특별시",
@@ -45,42 +47,73 @@ STATIC_REGIONS = {
     "서울특별시 송파구 잠실동": {"resolved_name": "잠실동", "admin1": "서울특별시", "admin2": "송파구", "admin3": "잠실동", "country": "대한민국", "latitude": 37.5110, "longitude": 127.0811, "timezone": "Asia/Seoul"},
 }
 
+GRADE_ORDER = {"좋음": 0, "보통": 1, "나쁨": 2, "매우나쁨": 3, "정보 없음": -1}
+WEATHER_CODES = {
+    0: "맑음",
+    1: "대체로 맑음",
+    2: "부분적으로 흐림",
+    3: "흐림",
+    45: "안개",
+    48: "서리 안개",
+    51: "이슬비",
+    53: "이슬비",
+    55: "강한 이슬비",
+    61: "비",
+    63: "비",
+    65: "강한 비",
+    71: "눈",
+    73: "눈",
+    75: "강한 눈",
+    80: "소나기",
+    81: "소나기",
+    82: "강한 소나기",
+    95: "뇌우",
+}
+
 
 def ensure_data_dir() -> None:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def _json_default_payload() -> Dict[str, Any]:
-    return {"users": {}}
+def _read_json(path: Path, default: Dict[str, Any]) -> Dict[str, Any]:
+    ensure_data_dir()
+    if not path.exists():
+        return default
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _write_json(path: Path, payload: Dict[str, Any]) -> None:
+    ensure_data_dir()
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def load_preferences() -> Dict[str, Any]:
-    ensure_data_dir()
-    if not PREFERENCES_PATH.exists():
-        return _json_default_payload()
-    return json.loads(PREFERENCES_PATH.read_text(encoding="utf-8"))
+    return _read_json(PREFERENCES_PATH, {"users": {}})
 
 
 def save_preferences(payload: Dict[str, Any]) -> None:
-    ensure_data_dir()
-    PREFERENCES_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    _write_json(PREFERENCES_PATH, payload)
 
 
 def load_station_cache() -> Dict[str, Any]:
-    ensure_data_dir()
-    if not STATION_CACHE_PATH.exists():
-        return {"regions": {}}
-    return json.loads(STATION_CACHE_PATH.read_text(encoding="utf-8"))
+    return _read_json(STATION_CACHE_PATH, {"regions": {}})
 
 
 def save_station_cache(payload: Dict[str, Any]) -> None:
-    ensure_data_dir()
-    STATION_CACHE_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    _write_json(STATION_CACHE_PATH, payload)
+
+
+def load_alert_rules() -> Dict[str, Any]:
+    return _read_json(ALERT_RULES_PATH, {"rules": []})
+
+
+def save_alert_rules(payload: Dict[str, Any]) -> None:
+    _write_json(ALERT_RULES_PATH, payload)
 
 
 def fetch_json(url: str, params: Dict[str, Any]) -> Dict[str, Any]:
     query = urllib.parse.urlencode({k: v for k, v in params.items() if v is not None})
-    req = urllib.request.Request(f"{url}?{query}", headers={"User-Agent": "OpenClaw-Korea-Air-Quality/0.1"})
+    req = urllib.request.Request(f"{url}?{query}", headers={"User-Agent": "OpenClaw-Korea-Air-Quality/0.2"})
     with urllib.request.urlopen(req, timeout=20) as response:
         return json.loads(response.read().decode("utf-8"))
 
@@ -101,28 +134,10 @@ def geocode_region(region: str) -> Dict[str, Any]:
         cache.setdefault("regions", {})[normalized] = resolved
         save_station_cache(cache)
         return resolved
-    payload = fetch_json(
-        OPENMETEO_GEOCODING_URL,
-        {
-            "name": normalized,
-            "count": 5,
-            "language": "ko",
-            "format": "json",
-            "countryCode": "KR",
-        },
-    )
+    payload = fetch_json(OPENMETEO_GEOCODING_URL, {"name": normalized, "count": 5, "language": "ko", "format": "json", "countryCode": "KR"})
     results = payload.get("results") or []
     if not results and " " in normalized:
-        payload = fetch_json(
-            OPENMETEO_GEOCODING_URL,
-            {
-                "name": normalized.split()[-1],
-                "count": 5,
-                "language": "ko",
-                "format": "json",
-                "countryCode": "KR",
-            },
-        )
+        payload = fetch_json(OPENMETEO_GEOCODING_URL, {"name": normalized.split()[-1], "count": 5, "language": "ko", "format": "json", "countryCode": "KR"})
         results = payload.get("results") or []
     if not results:
         raise ValueError(f"대한민국 지역 후보를 찾지 못했습니다: {region}")
@@ -160,16 +175,7 @@ def nearest_known_region(lat: float, lon: float) -> Dict[str, Any]:
 
 
 def fetch_air_quality(lat: float, lon: float, timezone: str = "Asia/Seoul") -> Dict[str, Any]:
-    payload = fetch_json(
-        OPENMETEO_AIR_URL,
-        {
-            "latitude": lat,
-            "longitude": lon,
-            "timezone": timezone,
-            "current": "pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone,us_aqi,european_aqi",
-            "forecast_days": 1,
-        },
-    )
+    payload = fetch_json(OPENMETEO_AIR_URL, {"latitude": lat, "longitude": lon, "timezone": timezone, "current": "pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone,us_aqi,european_aqi", "forecast_days": 1})
     current = payload.get("current") or {}
     return {
         "time": current.get("time"),
@@ -178,6 +184,28 @@ def fetch_air_quality(lat: float, lon: float, timezone: str = "Asia/Seoul") -> D
         "ozone": current.get("ozone"),
         "us_aqi": current.get("us_aqi"),
         "european_aqi": current.get("european_aqi"),
+    }
+
+
+def fetch_weather(lat: float, lon: float, timezone: str = "Asia/Seoul") -> Dict[str, Any]:
+    payload = fetch_json(OPENMETEO_WEATHER_URL, {
+        "latitude": lat,
+        "longitude": lon,
+        "timezone": timezone,
+        "current": "temperature_2m,apparent_temperature,weather_code",
+        "daily": "temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code",
+        "forecast_days": 1,
+    })
+    current = payload.get("current") or {}
+    daily = payload.get("daily") or {}
+    return {
+        "current_temp": current.get("temperature_2m"),
+        "apparent_temp": current.get("apparent_temperature"),
+        "current_weather_code": current.get("weather_code"),
+        "today_max": (daily.get("temperature_2m_max") or [None])[0],
+        "today_min": (daily.get("temperature_2m_min") or [None])[0],
+        "precipitation_probability_max": (daily.get("precipitation_probability_max") or [None])[0],
+        "today_weather_code": (daily.get("weather_code") or [None])[0],
     }
 
 
@@ -206,10 +234,9 @@ def grade_pm10(value: float | None) -> str:
 
 
 def overall_grade(pm10: float | None, pm25: float | None) -> str:
-    order = ["좋음", "보통", "나쁨", "매우나쁨", "정보 없음"]
     grades = [grade_pm10(pm10), grade_pm25(pm25)]
-    ranked = [g for g in grades if g in order[:-1]]
-    return max(ranked, key=lambda g: order.index(g)) if ranked else "정보 없음"
+    ranked = [g for g in grades if g in ("좋음", "보통", "나쁨", "매우나쁨")]
+    return max(ranked, key=lambda g: GRADE_ORDER[g]) if ranked else "정보 없음"
 
 
 def action_tip(overall: str) -> str:
@@ -224,11 +251,15 @@ def action_tip(overall: str) -> str:
     return "추가 데이터 확인이 필요해요."
 
 
+def weather_text(code: int | None) -> str:
+    return WEATHER_CODES.get(code or -1, "날씨 정보 없음")
+
+
 def resolve_region(args: argparse.Namespace) -> Tuple[Dict[str, Any], str]:
-    if args.lat is not None and args.lon is not None:
+    if getattr(args, "lat", None) is not None and getattr(args, "lon", None) is not None:
         region = nearest_known_region(args.lat, args.lon)
         return region, "location"
-    if args.region:
+    if getattr(args, "region", None):
         return geocode_region(args.region), "query"
     if getattr(args, "user", None):
         prefs = load_preferences()
@@ -241,7 +272,6 @@ def resolve_region(args: argparse.Namespace) -> Tuple[Dict[str, Any], str]:
 def build_summary(region: Dict[str, Any], air: Dict[str, Any], source: str) -> Dict[str, Any]:
     pm10 = air.get("pm10")
     pm25 = air.get("pm2_5")
-    ozone = air.get("ozone")
     overall = overall_grade(pm10, pm25)
     return {
         "resolved_region": region.get("resolved_name"),
@@ -253,7 +283,7 @@ def build_summary(region: Dict[str, Any], air: Dict[str, Any], source: str) -> D
         "measured_at": air.get("time"),
         "pm10": {"value": pm10, "grade": grade_pm10(pm10)},
         "pm2_5": {"value": pm25, "grade": grade_pm25(pm25)},
-        "ozone": {"value": ozone},
+        "ozone": {"value": air.get("ozone")},
         "overall_grade": overall,
         "action_tip": action_tip(overall),
     }
@@ -263,7 +293,7 @@ def render_text(summary: Dict[str, Any]) -> str:
     region_line = summary["resolved_region"]
     if summary.get("admin1") and summary["admin1"] != summary["resolved_region"]:
         region_line = f"{summary['admin1']} {summary['resolved_region']}"
-    lines = [
+    return "\n".join([
         f"{region_line} 기준 대기질이야.",
         f"- 측정 시각: {summary.get('measured_at') or '정보 없음'}",
         f"- 초미세먼지(PM2.5): {summary['pm2_5']['value']} μg/m³ · {summary['pm2_5']['grade']}",
@@ -272,18 +302,123 @@ def render_text(summary: Dict[str, Any]) -> str:
         f"- 종합 판단: {summary['overall_grade']}",
         f"- 한줄 팁: {summary['action_tip']}",
         f"- 지역 결정 방식: {summary['resolved_by']}",
-    ]
-    return "\n".join(lines)
+    ])
+
+
+def build_morning_brief(summary: Dict[str, Any], weather: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "region": f"{summary.get('admin1') or ''} {summary['resolved_region']}".strip(),
+        "measured_at": summary.get("measured_at"),
+        "weather": {
+            "current_temp": weather.get("current_temp"),
+            "apparent_temp": weather.get("apparent_temp"),
+            "today_max": weather.get("today_max"),
+            "today_min": weather.get("today_min"),
+            "summary": weather_text(weather.get("today_weather_code")),
+            "precipitation_probability_max": weather.get("precipitation_probability_max"),
+        },
+        "air": summary,
+        "brief": (
+            f"오늘 {summary['resolved_region']}은 {weather_text(weather.get('today_weather_code'))}, "
+            f"기온 {weather.get('today_min')}~{weather.get('today_max')}°C 정도고 "
+            f"초미세먼지는 {summary['pm2_5']['grade']}, 미세먼지는 {summary['pm10']['grade']} 수준이야. "
+            f"{summary['action_tip']}"
+        ),
+    }
+
+
+def grade_value_for_metric(summary: Dict[str, Any], metric: str) -> str:
+    if metric == "pm2_5":
+        return summary["pm2_5"]["grade"]
+    if metric == "pm10":
+        return summary["pm10"]["grade"]
+    return summary["overall_grade"]
+
+
+def alert_matches(summary: Dict[str, Any], metric: str, threshold: str) -> bool:
+    current_grade = grade_value_for_metric(summary, metric)
+    return GRADE_ORDER.get(current_grade, -1) >= GRADE_ORDER.get(threshold, 99)
 
 
 def cmd_now(args: argparse.Namespace) -> int:
     region, source = resolve_region(args)
     air = fetch_air_quality(float(region["latitude"]), float(region["longitude"]), region.get("timezone", "Asia/Seoul"))
     summary = build_summary(region, air, source)
+    print(json.dumps(summary, ensure_ascii=False, indent=2) if args.json else render_text(summary))
+    return 0
+
+
+def cmd_morning_brief(args: argparse.Namespace) -> int:
+    region, source = resolve_region(args)
+    air = fetch_air_quality(float(region["latitude"]), float(region["longitude"]), region.get("timezone", "Asia/Seoul"))
+    summary = build_summary(region, air, source)
+    weather = fetch_weather(float(region["latitude"]), float(region["longitude"]), region.get("timezone", "Asia/Seoul"))
+    brief = build_morning_brief(summary, weather)
     if args.json:
-        print(json.dumps(summary, ensure_ascii=False, indent=2))
+        print(json.dumps(brief, ensure_ascii=False, indent=2))
     else:
-        print(render_text(summary))
+        print(f"{brief['region']} 아침 브리핑")
+        print(f"- 날씨: {brief['weather']['summary']} / {brief['weather']['today_min']}~{brief['weather']['today_max']}°C")
+        print(f"- 강수 확률: {brief['weather']['precipitation_probability_max']}%")
+        print(f"- 초미세먼지: {summary['pm2_5']['value']} μg/m³ · {summary['pm2_5']['grade']}")
+        print(f"- 미세먼지: {summary['pm10']['value']} μg/m³ · {summary['pm10']['grade']}")
+        print(f"- 종합 판단: {summary['overall_grade']}")
+        print(f"- 한줄 요약: {brief['brief']}")
+    return 0
+
+
+def cmd_alert_add(args: argparse.Namespace) -> int:
+    rules_payload = load_alert_rules()
+    rules = rules_payload.setdefault("rules", [])
+    rule = {
+        "id": len(rules) + 1,
+        "user": args.user,
+        "region": args.region,
+        "metric": args.metric,
+        "threshold": args.threshold,
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    rules.append(rule)
+    save_alert_rules(rules_payload)
+    print(json.dumps(rule, ensure_ascii=False, indent=2) if args.json else f"알림 규칙 저장 완료: {args.user} / {args.region} / {args.metric} / {args.threshold} 이상")
+    return 0
+
+
+def cmd_alert_list(args: argparse.Namespace) -> int:
+    rules = load_alert_rules().get("rules", [])
+    if args.user:
+        rules = [rule for rule in rules if rule.get("user") == args.user]
+    if args.json:
+        print(json.dumps(rules, ensure_ascii=False, indent=2))
+        return 0
+    if not rules:
+        print("등록된 알림 규칙이 없습니다.")
+        return 0
+    for rule in rules:
+        print(f"- #{rule['id']} {rule['user']} / {rule['region']} / {rule['metric']} / {rule['threshold']} 이상")
+    return 0
+
+
+def cmd_alert_check(args: argparse.Namespace) -> int:
+    rules = load_alert_rules().get("rules", [])
+    if args.user:
+        rules = [rule for rule in rules if rule.get("user") == args.user]
+    hits = []
+    for rule in rules:
+        region = geocode_region(rule["region"])
+        air = fetch_air_quality(float(region["latitude"]), float(region["longitude"]), region.get("timezone", "Asia/Seoul"))
+        summary = build_summary(region, air, "alert-check")
+        if alert_matches(summary, rule["metric"], rule["threshold"]):
+            hits.append({"rule": rule, "summary": summary, "current_grade": grade_value_for_metric(summary, rule["metric"])})
+    if args.json:
+        print(json.dumps(hits, ensure_ascii=False, indent=2))
+        return 0
+    if not hits:
+        print("현재 조건을 만족하는 알림 항목이 없습니다.")
+        return 0
+    for hit in hits:
+        print(f"- {hit['rule']['region']} / {hit['rule']['metric']} / 현재 {hit['current_grade']} / 기준 {hit['rule']['threshold']} 이상")
+        print(f"  초미세먼지 {hit['summary']['pm2_5']['value']}({hit['summary']['pm2_5']['grade']}), 미세먼지 {hit['summary']['pm10']['value']}({hit['summary']['pm10']['grade']})")
     return 0
 
 
@@ -302,10 +437,8 @@ def cmd_compare(args: argparse.Namespace) -> int:
     if args.json:
         print(json.dumps(results, ensure_ascii=False, indent=2))
         return 0
-    lines = []
     for item in results:
-        lines.append(f"- {item['resolved_region']}: PM2.5 {item['pm2_5']['value']}({item['pm2_5']['grade']}), PM10 {item['pm10']['value']}({item['pm10']['grade']}), 종합 {item['overall_grade']}")
-    print("\n".join(lines))
+        print(f"- {item['resolved_region']}: PM2.5 {item['pm2_5']['value']}({item['pm2_5']['grade']}), PM10 {item['pm10']['value']}({item['pm10']['grade']}), 종합 {item['overall_grade']}")
     return 0
 
 
@@ -321,10 +454,7 @@ def cmd_save_default(args: argparse.Namespace) -> int:
 def cmd_show_default(args: argparse.Namespace) -> int:
     prefs = load_preferences()
     region = prefs.get("users", {}).get(args.user, {}).get("default_region")
-    if args.json:
-        print(json.dumps({"user": args.user, "default_region": region}, ensure_ascii=False, indent=2))
-    else:
-        print(region or "저장된 기본 지역이 없습니다.")
+    print(json.dumps({"user": args.user, "default_region": region}, ensure_ascii=False, indent=2) if args.json else (region or "저장된 기본 지역이 없습니다."))
     return 0
 
 
@@ -334,11 +464,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("now", help="현재 대기질 조회")
     p.add_argument("region", nargs="?")
-    p.add_argument("--user", help="저장된 기본 지역을 불러올 사용자 키")
+    p.add_argument("--user")
     p.add_argument("--lat", type=float)
     p.add_argument("--lon", type=float)
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_now)
+
+    p = sub.add_parser("morning-brief", help="날씨+대기질 아침 브리핑")
+    p.add_argument("region", nargs="?")
+    p.add_argument("--user")
+    p.add_argument("--lat", type=float)
+    p.add_argument("--lon", type=float)
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_morning_brief)
 
     p = sub.add_parser("resolve-region", help="지역명 해석/좌표 확인")
     p.add_argument("region")
@@ -359,6 +497,24 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("user")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_show_default)
+
+    p = sub.add_parser("alert-add", help="대기질 알림 규칙 추가")
+    p.add_argument("user")
+    p.add_argument("region")
+    p.add_argument("metric", choices=["pm2_5", "pm10", "overall"])
+    p.add_argument("threshold", choices=["좋음", "보통", "나쁨", "매우나쁨"])
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_alert_add)
+
+    p = sub.add_parser("alert-list", help="알림 규칙 목록")
+    p.add_argument("--user")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_alert_list)
+
+    p = sub.add_parser("alert-check", help="알림 규칙 점검")
+    p.add_argument("--user")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_alert_check)
 
     return parser
 

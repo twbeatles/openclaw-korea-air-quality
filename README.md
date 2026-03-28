@@ -24,12 +24,13 @@
 
 현재 버전에는 아래가 포함됩니다.
 
-- 한국 지역명 기반 조회 프로토타입
-- Open-Meteo 기반 대기질 조회
+- Open-Meteo 기반 대한민국 대기질 조회
 - 지역 alias 일부 지원 (`서울`, `성동구`, `분당`, `판교`, `영통`, `잠실` 등)
 - 사용자 기본 지역 저장/조회
 - 여러 지역 비교 CLI
 - 위치 좌표 입력 시 캐시된 지역 후보 기준 nearest 해석 구조
+- 대기질 알림 규칙 추가/목록/점검 (`alert-add`, `alert-list`, `alert-check`)
+- 날씨 + 대기질 결합 아침 브리핑 (`morning-brief`)
 
 ## 빠른 예시
 
@@ -52,6 +53,21 @@ python scripts/air_quality.py now --user telegram:8209218742
 
 ```bash
 python scripts/air_quality.py compare 서울 수원 인천
+```
+
+### 알림 규칙 추가 / 점검
+
+```bash
+python scripts/air_quality.py alert-add telegram:8209218742 성동구 pm2_5 나쁨
+python scripts/air_quality.py alert-list --user telegram:8209218742
+python scripts/air_quality.py alert-check --user telegram:8209218742
+```
+
+### 아침 브리핑
+
+```bash
+python scripts/air_quality.py morning-brief 성동구
+python scripts/air_quality.py morning-brief --user telegram:8209218742
 ```
 
 ### 지역명 해석
