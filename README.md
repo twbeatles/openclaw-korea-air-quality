@@ -23,7 +23,8 @@
 
 ### 지금 바로 동작하는 것
 
-- Open-Meteo 기반 대한민국 대기질 조회
+- **AirKorea 기반 대한민국 대기질 조회**
+- Open-Meteo 기반 fallback 조회
 - 지역 alias / 동·구 fallback (`답십리동`, `동대문구`, `성동구`, `분당`, `판교`, `영통`, `잠실` 등)
 - 사용자 기본 지역 저장/조회
 - 사용자 기본 위치 좌표 저장/조회
@@ -34,15 +35,12 @@
 - 날씨 + 대기질 결합 아침 브리핑
 - OpenClaw cron 초안 생성 (`cron-plan`)
 - provider 설정 저장/조회 (`setup-provider`, `show-config`)
+- AirKorea 시도 단위 실시간 측정 JSON/XML 파싱 fallback
 
-### 준비되어 있지만 추가 검증이 필요한 것
+### 참고
 
-- **AirKorea provider 실연결**
-  - 시도 단위 실시간 측정 API 호출 경로는 구현됨
-  - JSON/XML 파싱 fallback도 구현됨
-  - 하지만 실제 사용에는 **`AIRKOREA_API_KEY` 또는 `data/config.json`의 `airkorea_api_key`** 가 필요함
-  - 현재 확인된 화면 기준으로 승인된 서비스군이 `MsrstnInfoInqireSvc`일 가능성이 있어, `ArpltnInforInqireSvc` 실시간 측정 API는 별도 활용신청/승인이 필요할 수 있음
-  - 현재 이 저장소는 키가 없는 환경에서도 기본적으로 `openmeteo` provider로 사용 가능
+- 실제 국내 실측값을 쓰려면 **`AIRKOREA_API_KEY` 또는 `data/config.json`의 `airkorea_api_key`** 가 필요함
+- 키가 없는 환경에서도 fallback으로 `openmeteo` provider 사용 가능
 
 ## 빠르게 써보기
 
@@ -50,6 +48,7 @@
 
 ```bash
 python scripts/air_quality.py now 답십리동
+python scripts/air_quality.py now 답십리동 --provider airkorea
 python scripts/air_quality.py now 서울 --json
 ```
 
@@ -95,14 +94,8 @@ python scripts/air_quality.py cron-plan alert-check telegram:8209218742 --json
 ### 7) provider 설정
 
 ```bash
-python scripts/air_quality.py setup-provider openmeteo --json
-python scripts/air_quality.py show-config --json
-```
-
-AirKorea로 전환하려면:
-
-```bash
 python scripts/air_quality.py setup-provider airkorea --airkorea-api-key "YOUR_KEY" --json
+python scripts/air_quality.py show-config --json
 python scripts/air_quality.py now 답십리동 --provider airkorea
 ```
 
