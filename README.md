@@ -41,6 +41,7 @@
   - 시도 단위 실시간 측정 API 호출 경로는 구현됨
   - JSON/XML 파싱 fallback도 구현됨
   - 하지만 실제 사용에는 **`AIRKOREA_API_KEY` 또는 `data/config.json`의 `airkorea_api_key`** 가 필요함
+  - 현재 확인된 화면 기준으로 승인된 서비스군이 `MsrstnInfoInqireSvc`일 가능성이 있어, `ArpltnInforInqireSvc` 실시간 측정 API는 별도 활용신청/승인이 필요할 수 있음
   - 현재 이 저장소는 키가 없는 환경에서도 기본적으로 `openmeteo` provider로 사용 가능
 
 ## 빠르게 써보기

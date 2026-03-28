@@ -6,6 +6,7 @@ import math
 import os
 import urllib.parse
 import urllib.request
+from urllib.error import HTTPError
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
@@ -226,6 +227,23 @@ def fetch_airkorea_air_quality(lat: float, lon: float, timezone: str = "Asia/Seo
     try:
         payload = fetch_json(url, params)
         items = (((payload or {}).get("response") or {}).get("body") or {}).get("items") or []
+    except HTTPError as exc:
+        if exc.code == 401:
+            raise ValueError(
+                "AirKorea 인증은 됐지만 현재 호출한 서비스(ArpltnInforInqireSvc)에 대한 권한이 없을 수 있습니다. "
+                "현재 발급 화면상 승인된 엔드포인트는 MsrstnInfoInqireSvc 계열로 보입니다. "
+                "공공데이터포털에서 ArpltnInforInqireSvc 사용 신청/승인 여부를 확인하거나, 승인된 서비스군에 맞춰 측정소 정보 API부터 연결하세요."
+            ) from exc
+        try:
+            xml_text = fetch_text(url, {k: v for k, v in params.items() if k != "returnType"})
+            items = parse_xml_items(xml_text)
+        except HTTPError as xml_exc:
+            if xml_exc.code == 401:
+                raise ValueError(
+                    "AirKorea API 호출이 401 Unauthorized로 거부되었습니다. 현재 서비스키가 MsrstnInfoInqireSvc 전용이거나, "
+                    "ArpltnInforInqireSvc에 대한 활용신청이 아직 반영되지 않았을 가능성이 큽니다."
+                ) from xml_exc
+            raise
     except Exception:
         xml_text = fetch_text(url, {k: v for k, v in params.items() if k != "returnType"})
         items = parse_xml_items(xml_text)
