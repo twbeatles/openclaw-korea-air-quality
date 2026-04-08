@@ -543,6 +543,19 @@ def cmd_alert_check(args: argparse.Namespace) -> int:
     if args.json:
         print(json.dumps(hits, ensure_ascii=False, indent=2))
         return 0
+    if getattr(args, "announce_text", False):
+        if not hits:
+            print("NO_REPLY")
+            return 0
+        hit = hits[0]
+        summary = hit["summary"]
+        rule = hit["rule"]
+        measured_at = summary.get("measured_at") or "측정 시각 없음"
+        print(
+            f"{rule['region']} 초미세먼지 알림: 현재 등급 {hit['current_grade']}(기준: {rule['threshold']} 이상), "
+            f"초미세먼지 {summary['pm2_5']['value']}㎍/㎥ / 미세먼지 {summary['pm10']['value']}㎍/㎥, 측정 시각 {measured_at}."
+        )
+        return 0
     if not hits:
         print("현재 조건을 만족하는 신규 알림 항목이 없습니다.")
         return 0
@@ -706,6 +719,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--user")
     p.add_argument("--json", action="store_true")
     p.add_argument("--emit-all", action="store_true")
+    p.add_argument("--announce-text", action="store_true", help="cron/announce friendly plain text output")
     add_provider_args(p)
     p.set_defaults(func=cmd_alert_check)
 
