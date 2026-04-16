@@ -162,6 +162,36 @@ python scripts/air_quality.py resolve-region 판교 --json
 이 파일들은 **사용자별 상태 / 캐시 / 알림 이력**이라서 기본적으로 `.gitignore` 대상이다.
 즉, 저장소에는 스킬 코드와 문서 중심으로 남기고, 개인 상태는 로컬에 남기는 방식을 권장한다.
 
+운영 관점에서 보면 아래처럼 나누는 것이 안전하다.
+
+- git에 남겨도 되는 것
+  - `README.md`, `SKILL.md`, `references/`, `scripts/`
+- 로컬 전용으로 두는 것
+  - `data/config.json`
+  - `data/user-preferences.json`
+  - `data/alert-rules.json`
+  - `data/alert-state.json`
+  - `data/station-cache.json`
+  - 각종 `stdout/stderr/tmp` 디버그 출력 파일
+
+배포 전에 `git status` 에 위 로컬 파일이 보이면 먼저 ignore/정리부터 확인하는 편이 좋다.
+
+## 권장 smoke test
+
+```bash
+python scripts/air_quality.py show-config --json
+python scripts/air_quality.py resolve-region 답십리동 --json
+python scripts/air_quality.py now 서울 --json
+python scripts/air_quality.py compare 서울 수원 인천
+python scripts/air_quality.py alert-list --user telegram:8209218742
+```
+
+확인 포인트:
+- provider 설정이 기대대로 보이는지
+- 지역 alias가 원하는 측정소/행정구역으로 해석되는지
+- `now` 와 `compare` 가 모두 깨지지 않는지
+- 로컬 상태 파일이 생성되더라도 커밋 대상에 섞이지 않는지
+
 ## 지금 남아 있는 큰 작업
 
 1. AirKorea 실 API 키 기준 실측 응답 검증/미세 조정
