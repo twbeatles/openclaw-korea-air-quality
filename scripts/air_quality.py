@@ -4,6 +4,7 @@ import argparse
 import json
 import math
 import os
+import re
 import urllib.parse
 import urllib.request
 from urllib.error import HTTPError
@@ -174,6 +175,33 @@ def normalize_region_name(region: str) -> str:
     return REGION_ALIASES.get(cleaned, cleaned)
 
 
+def parse_shared_location(raw: str | None) -> Dict[str, Any] | None:
+    text = str(raw or "").strip()
+    if not text:
+        return None
+    try:
+        payload = json.loads(text)
+        if isinstance(payload, dict):
+            candidates = [payload, payload.get("location") if isinstance(payload.get("location"), dict) else None, payload.get("message") if isinstance(payload.get("message"), dict) else None]
+            for candidate in candidates:
+                if not isinstance(candidate, dict):
+                    continue
+                nested = candidate.get("location") if isinstance(candidate.get("location"), dict) else candidate
+                lat = nested.get("latitude") or nested.get("lat")
+                lon = nested.get("longitude") or nested.get("lon") or nested.get("lng")
+                if lat is not None and lon is not None:
+                    return {"lat": float(lat), "lon": float(lon), "label": nested.get("label") or payload.get("label")}
+    except Exception:
+        pass
+    match = re.search(r"(-?\d{1,3}\.\d+)\s*[, ]\s*(-?\d{1,3}\.\d+)", text)
+    if match:
+        return {"lat": float(match.group(1)), "lon": float(match.group(2)), "label": None}
+    match = re.search(r"q=(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)", text)
+    if match:
+        return {"lat": float(match.group(1)), "lon": float(match.group(2)), "label": None}
+    return None
+
+
 def resolve_provider(explicit_provider: str | None) -> str:
     if explicit_provider:
         return explicit_provider
@@ -318,7 +346,7 @@ def geocode_region(region: str) -> Dict[str, Any]:
 def nearest_known_region(lat: float, lon: float) -> Dict[str, Any]:
     cache = load_station_cache().get("regions", {})
     if not cache:
-        raise ValueError("좌표 기반 추정에 사용할 지역 캐시가 없습니다. 먼저 지역명 조회를 한 번 수행하세요.")
+        cache = {key: {"query": key, **value} for key, value in STATIC_REGIONS.items()}
     best_item = None
     best_distance = float("inf")
     for item in cache.values():
@@ -398,6 +426,10 @@ def weather_text(code: int | None) -> str:
 
 
 def resolve_region(args: argparse.Namespace) -> Tuple[Dict[str, Any], str]:
+    shared = parse_shared_location(getattr(args, "location_text", None))
+    if shared:
+        region = nearest_known_region(float(shared["lat"]), float(shared["lon"]))
+        return region, "shared-location"
     if getattr(args, "lat", None) is not None and getattr(args, "lon", None) is not None:
         region = nearest_known_region(args.lat, args.lon)
         return region, "location"
@@ -582,12 +614,22 @@ def cmd_save_default(args: argparse.Namespace) -> int:
 
 
 def cmd_save_location(args: argparse.Namespace) -> int:
+    shared = parse_shared_location(getattr(args, "location_text", None))
+    lat = args.lat
+    lon = args.lon
+    label = args.label
+    if shared:
+        lat = shared["lat"]
+        lon = shared["lon"]
+        label = label or shared.get("label")
+    if lat is None or lon is None:
+        raise ValueError("위치 좌표를 확인할 수 없습니다. lat/lon 또는 --location-text 를 넣어 주세요.")
     prefs = load_preferences()
     users = prefs.setdefault("users", {})
     info = users.setdefault(args.user, {})
-    info["default_location"] = {"lat": args.lat, "lon": args.lon, "label": args.label}
+    info["default_location"] = {"lat": lat, "lon": lon, "label": label}
     save_preferences(prefs)
-    print(f"기본 위치 저장 완료: {args.user} -> ({args.lat}, {args.lon})" + (f" / {args.label}" if args.label else ""))
+    print(f"기본 위치 저장 완료: {args.user} -> ({lat}, {lon})" + (f" / {label}" if label else ""))
     return 0
 
 
@@ -651,6 +693,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--user")
     p.add_argument("--lat", type=float)
     p.add_argument("--lon", type=float)
+    p.add_argument("--location-text", help="메신저 위치공유 JSON, 위경도 문자열, 지도 링크 등")
     p.add_argument("--json", action="store_true")
     add_provider_args(p)
     p.set_defaults(func=cmd_now)
@@ -660,6 +703,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--user")
     p.add_argument("--lat", type=float)
     p.add_argument("--lon", type=float)
+    p.add_argument("--location-text", help="메신저 위치공유 JSON, 위경도 문자열, 지도 링크 등")
     p.add_argument("--json", action="store_true")
     add_provider_args(p)
     p.set_defaults(func=cmd_morning_brief)
@@ -682,9 +726,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("save-location", help="사용자 기본 위치 좌표 저장")
     p.add_argument("user")
-    p.add_argument("lat", type=float)
-    p.add_argument("lon", type=float)
+    p.add_argument("lat", nargs="?", type=float)
+    p.add_argument("lon", nargs="?", type=float)
     p.add_argument("--label")
+    p.add_argument("--location-text", help="메신저 위치공유 JSON, 위경도 문자열, 지도 링크 등")
     p.set_defaults(func=cmd_save_location)
 
     p = sub.add_parser("show-default", help="사용자 기본 지역/위치 조회")
