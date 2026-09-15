@@ -12,7 +12,7 @@
   - 한국환경공단 에어코리아(`ArpltnInforInqireSvc`, ver 1.3) 실측 데이터 연동 (1시간 등급, KHAI, O3 등).
   - API 키가 없는 초기 환경에서도 Open-Meteo 기반으로 즉시 조회 가능한 자동 폴백(Fallback) 탑재.
 - **📍 4단계 계층형 측정소 정밀 매칭 (Hierarchical Station Matching)**
-  - 동 단위 측정소가 없는 경우(`답십리동` 등), 엉뚱한 시도 첫 번째 측정소로 튀지 않고 `동/읍/면` ➔ `자치구/시/군(동대문구)` ➔ `행정동` ➔ `시도 유효 측정소` 순서로 안전하게 가장 가까운 자치구 측정소를 선택.
+  - 동 단위 측정소가 없는 경우(`명동`, `을지로동` 등), 엉뚱한 시도 첫 번째 측정소로 튀지 않고 `동/읍/면` ➔ `자치구/시/군(서울 중구)` ➔ `행정동` ➔ `시도 유효 측정소` 순서로 안전하게 자치구 측정소(`중구` 측정소)를 선택.
   - 장비 점검 등으로 인한 결측치(`"-"`) 발생 시 인근 유효 측정소로 지능형 폴백.
 - **🔑 공공데이터포털 스마트 인증키 처리 (Smart Key Handling)**
   - 공공데이터포털 특유의 일반 인증키(Encoding vs Decoding) 포맷 차이로 인한 401 오류를 방지하기 위해 원문/인코딩 키 자동 재시도(`fallback retry`) 지원.
@@ -35,7 +35,7 @@
 
 ```bash
 # 기본 자연어 지역 조회
-python scripts/air_quality.py now 답십리동
+python scripts/air_quality.py now "서울 중구"
 python scripts/air_quality.py now 홍대
 python scripts/air_quality.py now 분당
 
@@ -53,7 +53,7 @@ python scripts/air_quality.py now 서울 --json
 python scripts/air_quality.py now --lat 35.1796 --lon 129.0756 --json
 
 # 메신저 위치공유 텍스트 또는 지도 링크 입력 (경도, 위도 순서도 자동 보정)
-python scripts/air_quality.py now --location-text "127.0569, 37.5666"
+python scripts/air_quality.py now --location-text "126.9979, 37.5641"
 ```
 
 ### 3) 사용자 기본 지역 / 위치 관리 (`save-default`, `clear-default`)
@@ -62,10 +62,10 @@ python scripts/air_quality.py now --location-text "127.0569, 37.5666"
 
 ```bash
 # 기본 지역 저장
-python scripts/air_quality.py save-default telegram:8209218742 답십리동
+python scripts/air_quality.py save-default telegram:8209218742 "서울 중구"
 
 # 기본 위치 좌표 저장
-python scripts/air_quality.py save-location telegram:8209218742 37.5666 127.0569 --label 답십리동
+python scripts/air_quality.py save-location telegram:8209218742 37.5641 126.9979 --label "서울 중구"
 
 # 저장된 기본 설정 확인
 python scripts/air_quality.py show-default telegram:8209218742 --json
@@ -91,7 +91,7 @@ python scripts/air_quality.py compare 서울 수원 부산 제주
 
 ```bash
 # 알림 규칙 추가 (초미세먼지 나쁨 이상)
-python scripts/air_quality.py alert-add telegram:8209218742 답십리동 pm2_5 나쁨
+python scripts/air_quality.py alert-add telegram:8209218742 "서울 중구" pm2_5 나쁨
 
 # 오존 알림 추가
 python scripts/air_quality.py alert-add telegram:8209218742 강남구 ozone 나쁨
@@ -112,7 +112,7 @@ python scripts/air_quality.py alert-remove --user telegram:8209218742 --all
 기온, 날씨 요약, 강수 확률, 미세먼지 수치, 행동 요령을 한눈에 보기 쉬운 모바일 요약형으로 생성합니다.
 
 ```bash
-python scripts/air_quality.py morning-brief 답십리동
+python scripts/air_quality.py morning-brief "서울 중구"
 python scripts/air_quality.py morning-brief --user telegram:8209218742
 ```
 
@@ -122,7 +122,7 @@ OpenClaw의 `cron add`에 즉시 등록할 수 있는 표준 작업 명세를 JS
 
 ```bash
 # 매일 아침 7시 30분 아침 브리핑 작업 초안
-python scripts/air_quality.py cron-plan morning-brief telegram:8209218742 --region 답십리동 --hour 7 --minute 30 --json
+python scripts/air_quality.py cron-plan morning-brief telegram:8209218742 --region "서울 중구" --hour 7 --minute 30 --json
 
 # 1시간마다 실행하는 대기질 알림 점검 작업 초안
 python scripts/air_quality.py cron-plan alert-check telegram:8209218742 --json
@@ -147,7 +147,7 @@ python scripts/air_quality.py setup-provider airkorea --airkorea-api-key "발급
 
 ```bash
 python scripts/air_quality.py show-config --json
-python scripts/air_quality.py now 답십리동 --provider airkorea
+python scripts/air_quality.py now "서울 중구" --provider airkorea
 ```
 
 > **Tip:** 공공데이터포털 활용신청 승인 직후에는 게이트웨이 동기화까지 약 10분~1시간가량 소요될 수 있습니다.
@@ -185,11 +185,11 @@ openclaw-korea-air-quality/
 
 ```bash
 python scripts/air_quality.py show-config --json
-python scripts/air_quality.py resolve-region 답십리동 --json
+python scripts/air_quality.py resolve-region "서울 중구" --json
 python scripts/air_quality.py now 서울 --json
-python scripts/air_quality.py morning-brief 답십리동
+python scripts/air_quality.py morning-brief "서울 중구"
 python scripts/air_quality.py compare 서울 수원 부산
-python scripts/air_quality.py cron-plan morning-brief testuser --region 답십리동 --json
+python scripts/air_quality.py cron-plan morning-brief testuser --region "서울 중구" --json
 ```
 
 ---
