@@ -1,200 +1,205 @@
-# OpenClaw Skill: Korea Air Quality
+# OpenClaw Korea Air Quality (`korea-air-quality`)
 
-`openclaw-korea-air-quality`는 대한민국 지역의 **미세먼지 / 초미세먼지 / 오존 / 대기질 요약 / 위치 기반 조회 / 알림 / 아침 브리핑**을 다루기 위한 **OpenClaw AgentSkill 저장소**입니다.
+대한민국 지역의 **실시간 대기질(미세먼지, 초미세먼지, 오존, 통합대기) 조회, 위치 기반 측정소 매칭, 날씨 결합 아침 브리핑, 임계치 초과 알림**을 지원하는 **OpenClaw 공식 AgentSkill**입니다.
 
-이 저장소는 일반 파이썬 앱이 아니라, **OpenClaw에서 설치·호출·자동화하는 스킬 저장소**입니다.
+한국환경공단 에어코리아(AirKorea, ver 1.3) 실측 API와 전 세계 기상 API인 Open-Meteo를 결합하여, API 키 유무와 무관하게 즉시 동작하며 국내 공공데이터의 고정밀 측정소 데이터까지 완벽하게 지원합니다.
 
-이 스킬이 다루는 대표 요청:
-- `답십리동 미세먼지 알려줘`
-- `내 위치 기준으로 공기질 알려줘`
-- `초미세먼지 나쁨 이상이면 알려줘`
-- `매일 아침 7시 30분에 답십리동 브리핑해줘`
-- `서울, 수원, 인천 공기질 비교해줘`
+---
 
-## 이 저장소가 OpenClaw 스킬인 이유
+## 🌟 주요 특징 (Key Features)
 
-- 권장 저장소명: `openclaw-korea-air-quality`
-- 스킬 엔트리: `SKILL.md`
-- 로컬 실행용 CLI: `scripts/air_quality.py`
-- 배포 결과물: `korea-air-quality.skill`
-- OpenClaw cron / 알림 / 브리핑 자동화 흐름과 연결되도록 설계됨
+- **🇰🇷 대한민국 실시간 대기질 조회 (AirKorea & Open-Meteo 결합)**
+  - 한국환경공단 에어코리아(`ArpltnInforInqireSvc`, ver 1.3) 실측 데이터 연동 (1시간 등급, KHAI, O3 등).
+  - API 키가 없는 초기 환경에서도 Open-Meteo 기반으로 즉시 조회 가능한 자동 폴백(Fallback) 탑재.
+- **📍 4단계 계층형 측정소 정밀 매칭 (Hierarchical Station Matching)**
+  - 동 단위 측정소가 없는 경우(`답십리동` 등), 엉뚱한 시도 첫 번째 측정소로 튀지 않고 `동/읍/면` ➔ `자치구/시/군(동대문구)` ➔ `행정동` ➔ `시도 유효 측정소` 순서로 안전하게 가장 가까운 자치구 측정소를 선택.
+  - 장비 점검 등으로 인한 결측치(`"-"`) 발생 시 인근 유효 측정소로 지능형 폴백.
+- **🔑 공공데이터포털 스마트 인증키 처리 (Smart Key Handling)**
+  - 공공데이터포털 특유의 일반 인증키(Encoding vs Decoding) 포맷 차이로 인한 401 오류를 방지하기 위해 원문/인코딩 키 자동 재시도(`fallback retry`) 지원.
+  - 포털 표준 에러 XML/JSON(`<cmmMsgHeader>`)을 파싱하여 서비스키 미등록, 승인 대기, 일일 트래픽 초과 등의 명확한 원인 안내.
+- **🗺️ 메신저 위치 공유 및 지도 링크 자동 분석**
+  - 메신저 JSON 위치 데이터, 위경도 문자열, 네이버 지도/카카오맵 링크 패턴 자동 인식.
+  - `(경도, 위도)` 순서로 뒤바뀐 좌표도 대한민국 좌표계 특성을 감지하여 자동 정규화.
+- **⏰ OpenClaw Cron 자동화 & 감시 알림**
+  - 감시 항목(`pm2_5`, `pm10`, `ozone`, `khai`, `overall`) 임계치 초과 시 알림 규칙 등록 및 중복 알림 방지 상태 관리.
+  - 현재 스크립트 실행 경로를 자동 감지하여 OpenClaw에 등록 가능한 `cron-plan` 초안 원클릭 생성.
+- **🛡️ 안정성 및 환경 호환성**
+  - 복수 지역 비교(`compare`) 시 일부 지역 오타가 있어도 전체 조회가 중단되지 않는 에러 내성 설계.
+  - Windows 콘솔 및 OpenClaw 서브프로세스 환경에서 한글 깨짐을 방지하는 UTF-8 자동 입출력 재구성.
 
-## 현재 상태 한눈에 보기
+---
 
-### 지금 바로 동작하는 것
+## 🚀 빠른 시작 (Quick Start)
 
-- **AirKorea 기반 대한민국 대기질 조회**
-- Open-Meteo 기반 fallback 조회
-- 지역 alias / 동·구 fallback (`답십리동`, `동대문구`, `성동구`, `분당`, `판교`, `영통`, `잠실` 등)
-- 사용자 기본 지역 저장/조회
-- 사용자 기본 위치 좌표 저장/조회
-- 저장된 위치 기반 조회 우선 적용
-- 여러 지역 비교 CLI
-- 대기질 알림 규칙 추가/목록/점검
-- 중복 알림 방지 상태 저장
-- 날씨 + 대기질 결합 아침 브리핑
-- OpenClaw cron 초안 생성 (`cron-plan`)
-- provider 설정 저장/조회 (`setup-provider`, `show-config`)
-- AirKorea 시도 단위 실시간 측정 JSON/XML 파싱 fallback
-
-### 참고
-
-- 실제 국내 실측값을 쓰려면 **`AIRKOREA_API_KEY` 또는 `data/config.json`의 `airkorea_api_key`** 가 필요함
-- 키가 없는 환경에서도 fallback으로 `openmeteo` provider 사용 가능
-
-## 빠르게 써보기
-
-### 1) 현재 대기질 조회
+### 1) 현재 대기질 조회 (`now`)
 
 ```bash
+# 기본 자연어 지역 조회
 python scripts/air_quality.py now 답십리동
-python scripts/air_quality.py now 답십리동 --provider airkorea
+python scripts/air_quality.py now 홍대
+python scripts/air_quality.py now 분당
+
+# 에어코리아 실측 프로바이더 명시
+python scripts/air_quality.py now 성동구 --provider airkorea
+
+# JSON 포맷 출력
 python scripts/air_quality.py now 서울 --json
 ```
 
-### 2) 기본 지역 / 위치 저장
+### 2) 위치 기반 대기질 조회 (`lat/lon` 또는 `location-text`)
 
 ```bash
+# 위경도 좌표 직접 입력 (부산)
+python scripts/air_quality.py now --lat 35.1796 --lon 129.0756 --json
+
+# 메신저 위치공유 텍스트 또는 지도 링크 입력 (경도, 위도 순서도 자동 보정)
+python scripts/air_quality.py now --location-text "127.0569, 37.5666"
+```
+
+### 3) 사용자 기본 지역 / 위치 관리 (`save-default`, `clear-default`)
+
+사용자 식별자(채널 ID 등)를 키로 기본 지역이나 위치 좌표를 영구 보관합니다.
+
+```bash
+# 기본 지역 저장
 python scripts/air_quality.py save-default telegram:8209218742 답십리동
+
+# 기본 위치 좌표 저장
 python scripts/air_quality.py save-location telegram:8209218742 37.5666 127.0569 --label 답십리동
+
+# 저장된 기본 설정 확인
 python scripts/air_quality.py show-default telegram:8209218742 --json
+
+# 저장된 기본 지역 기준으로 바로 조회
 python scripts/air_quality.py now --user telegram:8209218742
+
+# 기본 설정 초기화 (삭제)
+python scripts/air_quality.py clear-default telegram:8209218742
 ```
 
-### 3) 여러 지역 비교
+### 4) 여러 지역 동시 비교 (`compare`)
+
+여러 도시의 대기질을 한 번에 비교합니다. 일부 지역에 오타가 있어도 유효한 지역의 결과는 중단 없이 출력됩니다.
 
 ```bash
-python scripts/air_quality.py compare 서울 수원 인천
+python scripts/air_quality.py compare 서울 수원 부산 제주
 ```
 
-### 4) 알림 규칙 추가 / 점검
+### 5) 대기질 감시 알림 관리 (`alert-add`, `alert-list`, `alert-check`, `alert-remove`)
+
+원하는 지역, 지표, 임계 등급을 설정하여 지속적인 감시 규칙을 생성합니다.
 
 ```bash
+# 알림 규칙 추가 (초미세먼지 나쁨 이상)
 python scripts/air_quality.py alert-add telegram:8209218742 답십리동 pm2_5 나쁨
+
+# 오존 알림 추가
+python scripts/air_quality.py alert-add telegram:8209218742 강남구 ozone 나쁨
+
+# 등록된 알림 규칙 목록 조회
 python scripts/air_quality.py alert-list --user telegram:8209218742
+
+# 현재 상태 점검 (중복 알림 방지 탑재)
 python scripts/air_quality.py alert-check --user telegram:8209218742
+
+# 알림 규칙 삭제
+python scripts/air_quality.py alert-remove --user telegram:8209218742 --id 1
+python scripts/air_quality.py alert-remove --user telegram:8209218742 --all
 ```
 
-### 5) 아침 브리핑
+### 6) 날씨 결합 아침 브리핑 (`morning-brief`)
+
+기온, 날씨 요약, 강수 확률, 미세먼지 수치, 행동 요령을 한눈에 보기 쉬운 모바일 요약형으로 생성합니다.
 
 ```bash
 python scripts/air_quality.py morning-brief 답십리동
 python scripts/air_quality.py morning-brief --user telegram:8209218742
 ```
 
-### 6) OpenClaw cron 초안 생성
+### 7) OpenClaw Cron 자동화 스케줄 생성 (`cron-plan`)
+
+OpenClaw의 `cron add`에 즉시 등록할 수 있는 표준 작업 명세를 JSON으로 생성합니다. 현재 실행 환경의 스킬 설치 경로를 동적으로 자동 주입합니다.
 
 ```bash
+# 매일 아침 7시 30분 아침 브리핑 작업 초안
 python scripts/air_quality.py cron-plan morning-brief telegram:8209218742 --region 답십리동 --hour 7 --minute 30 --json
+
+# 1시간마다 실행하는 대기질 알림 점검 작업 초안
 python scripts/air_quality.py cron-plan alert-check telegram:8209218742 --json
 ```
 
-이 출력은 OpenClaw `cron add`에 넣기 쉬운 job 초안으로 쓰는 걸 전제로 한다.
+---
 
-### 7) provider 설정
+## 🔑 AirKorea OpenAPI 연동 가이드
 
-```bash
-python scripts/air_quality.py setup-provider airkorea --airkorea-api-key "YOUR_KEY" --json
-python scripts/air_quality.py show-config --json
-python scripts/air_quality.py now 답십리동 --provider airkorea
-```
+에어코리아 실시간 측정소 실측값을 사용하려면 공공데이터포털에서 API 키를 발급받아 등록합니다. (키가 없어도 Open-Meteo로 정상 동작합니다.)
 
-## AirKorea OpenAPI 키 발급 받기
-
-AirKorea 실측값을 쓰려면 공공데이터포털에서 OpenAPI 활용신청 후 서비스키를 발급받아야 한다.
-
-권장 순서:
-1. 공공데이터포털(data.go.kr)에 로그인
-2. AirKorea/대기질 관련 API 페이지로 이동
-   - 실시간 대기질 조회 계열: `ArpltnInforInqireSvc`
-   - 측정소 정보 계열: `MsrstnInfoInqireSvc`
-3. 원하는 API에 대해 **활용신청** 진행
-4. 승인 후 **일반 인증키**를 확인
-   - Encoding / Decoding 중 하나를 사용할 수 있지만, 구현/환경에 따라 차이가 날 수 있으니 둘 다 확인해 두는 것을 권장
-5. 아래처럼 스킬에 저장
+1. **공공데이터포털(data.go.kr) 로그인**
+2. **`한국환경공단_에어코리아_대기오염정보(ArpltnInforInqireSvc)`** 검색 후 **[활용신청]** 진행
+3. 마이페이지 ➔ 개발계정에서 발급된 **일반 인증키(Encoding 또는 Decoding)** 복사
+4. 스킬에 프로바이더 및 API 키 저장:
 
 ```bash
 python scripts/air_quality.py setup-provider airkorea --airkorea-api-key "발급받은서비스키" --json
 ```
 
-확인:
+설정 확인:
 
 ```bash
 python scripts/air_quality.py show-config --json
 python scripts/air_quality.py now 답십리동 --provider airkorea
 ```
 
-참고:
-- 활용신청 직후에는 권한 반영이 바로 안 될 수 있다.
-- `ArpltnInforInqireSvc` 와 `MsrstnInfoInqireSvc` 는 같은 에어코리아 계열이지만 서비스군이 다를 수 있어, 필요한 API별로 신청 상태를 확인하는 것이 안전하다.
+> **Tip:** 공공데이터포털 활용신청 승인 직후에는 게이트웨이 동기화까지 약 10분~1시간가량 소요될 수 있습니다.
 
-## 지역 해석 예시
+---
 
-```bash
-python scripts/air_quality.py resolve-region 답십리동 --json
-python scripts/air_quality.py resolve-region 판교 --json
+## 📂 저장소 구조 및 로컬 상태 파일 정책
+
+```text
+openclaw-korea-air-quality/
+├── SKILL.md                 # OpenClaw 스킬 정의 및 오퍼레이터 가이드
+├── README.md                # 저장소 전체 안내 문서
+├── scripts/
+│   └── air_quality.py       # 핵심 실행 CLI 엔진
+├── references/              # API 기획 및 국내 데이터 규격 문서
+│   ├── api-and-product-plan.md
+│   ├── domestic-api-notes.md
+│   └── alert-and-briefing.md
+└── data/                    # 로컬 런타임 상태 (기본 gitignore 대상)
+    ├── config.json          # 프로바이더 및 API 키 설정
+    ├── user-preferences.json# 사용자별 기본 지역/위치
+    ├── alert-rules.json     # 알림 규칙
+    ├── alert-state.json     # 알림 중복 방지 상태
+    └── station-cache.json   # 측정소 및 지오코딩 캐시
 ```
 
-## OpenClaw 자동화 흐름
+> [!NOTE]
+> `data/` 내부의 설정 및 상태 파일은 개인화된 런타임 정보이므로 Git 커밋 대상에서 제외(`gitignore`)됩니다. 저장소 코드와 문서는 완전 무상태(Stateless)로 배포 가능합니다.
 
-이 저장소는 단발 조회보다도 **OpenClaw 자동화**에 잘 맞는다.
+---
 
-예:
-- `초미세먼지 나쁨 이상이면 알려줘`
-  - `alert-add`로 규칙 저장
-  - `cron-plan alert-check ...` 로 cron 초안 생성
-  - OpenClaw cron에 연결해 주기 점검
-- `매일 아침 7시 30분에 답십리동 브리핑`
-  - `morning-brief`
-  - `cron-plan morning-brief ...`
-  - OpenClaw cron으로 매일 전달
+## 🧪 권장 Smoke Test
 
-## 로컬 상태 파일 정책
-
-이 저장소는 로컬 상태를 `data/` 아래에 저장한다.
-
-예:
-- `data/user-preferences.json`
-- `data/alert-rules.json`
-- `data/alert-state.json`
-- `data/station-cache.json`
-
-이 파일들은 **사용자별 상태 / 캐시 / 알림 이력**이라서 기본적으로 `.gitignore` 대상이다.
-즉, 저장소에는 스킬 코드와 문서 중심으로 남기고, 개인 상태는 로컬에 남기는 방식을 권장한다.
-
-운영 관점에서 보면 아래처럼 나누는 것이 안전하다.
-
-- git에 남겨도 되는 것
-  - `README.md`, `SKILL.md`, `references/`, `scripts/`
-- 로컬 전용으로 두는 것
-  - `data/config.json`
-  - `data/user-preferences.json`
-  - `data/alert-rules.json`
-  - `data/alert-state.json`
-  - `data/station-cache.json`
-  - 각종 `stdout/stderr/tmp` 디버그 출력 파일
-
-배포 전에 `git status` 에 위 로컬 파일이 보이면 먼저 ignore/정리부터 확인하는 편이 좋다.
-
-## 권장 smoke test
+배포 또는 업데이트 후 아래 테스트로 전체 동작 상태를 빠르게 검증할 수 있습니다.
 
 ```bash
 python scripts/air_quality.py show-config --json
 python scripts/air_quality.py resolve-region 답십리동 --json
 python scripts/air_quality.py now 서울 --json
-python scripts/air_quality.py compare 서울 수원 인천
-python scripts/air_quality.py alert-list --user telegram:8209218742
+python scripts/air_quality.py morning-brief 답십리동
+python scripts/air_quality.py compare 서울 수원 부산
+python scripts/air_quality.py cron-plan morning-brief testuser --region 답십리동 --json
 ```
 
-확인 포인트:
-- provider 설정이 기대대로 보이는지
-- 지역 alias가 원하는 측정소/행정구역으로 해석되는지
-- `now` 와 `compare` 가 모두 깨지지 않는지
-- 로컬 상태 파일이 생성되더라도 커밋 대상에 섞이지 않는지
+---
 
-## 지금 남아 있는 큰 작업
+## 🤝 OpenClaw 워크스페이스 연동
 
-1. AirKorea 실 API 키 기준 실측 응답 검증/미세 조정
-2. 텔레그램 위치 공유 메시지에서 위경도 자동 흡수
-3. OpenClaw cron 실제 등록을 상위 래퍼로 더 자동화
-4. weather 스킬과 더 자연스럽게 결합한 생활형 브리핑 고도화
+이 저장소는 OpenClaw 워크스페이스의 스킬 디렉토리에 설치하여 바로 사용할 수 있습니다:
+
+```bash
+openclaw skills info korea-air-quality
+```
+
+모든 조회, 브리핑, 알림은 OpenClaw 채팅창에서 한국어 자연어 명령으로 자유롭게 호출할 수 있습니다.

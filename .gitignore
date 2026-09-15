@@ -22,3 +22,6 @@ __pycache__/
 # Ad-hoc debug outputs
 *.txt
 __*.txt
+
+# Tool index
+.codegraph/

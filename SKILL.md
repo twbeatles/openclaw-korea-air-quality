@@ -63,7 +63,7 @@ description: 대한민국 대기질(미세먼지, 초미세먼지, 오존, 통�
 
 저장 위치는 `data/user-preferences.json` 같은 로컬 파일을 우선 고려한다.
 사용자별 식별자가 필요하면 채널 사용자 id를 키로 쓴다.
-현재 버전은 지역명 저장과 좌표 저장(`save-location`) 모두 지원한다.
+현재 버전은 지역명 저장(`save-default`), 좌표 저장(`save-location`), 기본 설정 삭제(`clear-default`)를 모두 지원한다.
 
 ### 4. 알림 / 감시
 
@@ -73,7 +73,7 @@ description: 대한민국 대기질(미세먼지, 초미세먼지, 오존, 통�
 - `서울 오존 나쁘면 알려줘`
 - `출근 시간에 공기 안 좋으면 알려줘`
 
-현재 버전은 `alert-add`, `alert-list`, `alert-check` 명령으로 로컬 규칙 저장/점검이 가능하다.
+현재 버전은 `alert-add`, `alert-list`, `alert-remove`, `alert-check` 명령으로 로컬 규칙 저장/조회/삭제/점검이 가능하다.
 `alert-check` 는 기본적으로 중복 hit를 다시 알리지 않도록 상태를 저장한다.
 반복 감시는 watch 성격의 로컬 규칙 + OpenClaw cron 조합으로 설계한다.
 
@@ -125,4 +125,4 @@ description: 대한민국 대기질(미세먼지, 초미세먼지, 오존, 통�
 
 ### scripts/air_quality.py
 
-실행 가능한 CLI다. 현재 버전은 Open-Meteo 기반으로 한국 지역 대기질 조회가 가능하며, 지역명 해석, 기본 지역/기본 좌표 저장, 여러 지역 비교, 알림 점검, 중복 알림 방지, 아침 브리핑, OpenClaw cron 초안 생성을 지원한다. `--provider airkorea` 레이어와 `setup-provider` 설정 흐름도 준비돼 있어 국내 API 연결 시 이 파일을 중심으로 확장한다.
+실행 가능한 CLI다. Open-Meteo 및 한국환경공단 에어코리아(`ArpltnInforInqireSvc`, ver 1.3) 기반으로 한국 지역 대기질 조회가 가능하며, 동/구/시 단위 4단계 계층형 측정소 매칭, 전국 17개 시도 거점 지원, 기본 지역/좌표 저장, 여러 지역 비교, 알림 점검(`alert-check`), 중복 알림 방지, 오존/통합대기(KHAI) 지표 등급화, 날씨 결합 아침 브리핑, 환경 자동 감지 OpenClaw cron 초안 생성을 지원한다. `--provider airkorea` 와 `setup-provider` 설정 흐름을 통해 국내 실측 API와 해외 기상 API를 유연하게 전환할 수 있다.
