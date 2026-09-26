@@ -1,0 +1,147 @@
+"""공유 상수: 외부 API 엔드포인트, 지역 별칭/정적 좌표, 등급 테이블.
+
+원본 scripts/air_quality.py 의 상수 블록을 그대로 옮긴 순수 데이터 모듈.
+로직을 두지 않는다 (SRP).
+"""
+from __future__ import annotations
+
+OPENMETEO_GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
+OPENMETEO_AIR_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
+OPENMETEO_WEATHER_URL = "https://api.open-meteo.com/v1/forecast"
+
+AIRKOREA_CTPRVN_URL = "https://apis.data.go.kr/B552584/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty"
+
+REGION_ALIASES = {
+    "서울": "서울특별시",
+    "부산": "부산광역시",
+    "대구": "대구광역시",
+    "인천": "인천광역시",
+    "광주": "광주광역시",
+    "대전": "대전광역시",
+    "울산": "울산광역시",
+    "세종": "세종특별자치시",
+    "제주": "제주특별자치도",
+    "경기": "경기도",
+    "강원": "강원특별자치도",
+    "충북": "충청북도",
+    "충남": "충청남도",
+    "전북": "전북특별자치도",
+    "전남": "전라남도",
+    "경북": "경상북도",
+    "경남": "경상남도",
+    # 서울 주요 자치구 및 핫스팟
+    "성동구": "서울특별시 성동구",
+    "강남구": "서울특별시 강남구",
+    "동대문구": "서울특별시 동대문구",
+    "송파구": "서울특별시 송파구",
+    "서초구": "서울특별시 서초구",
+    "마포구": "서울특별시 마포구",
+    "영등포구": "서울특별시 영등포구",
+    "종로구": "서울특별시 종로구",
+    "중구": "서울특별시 중구",
+    "서울 중구": "서울특별시 중구",
+    "서울시 중구": "서울특별시 중구",
+    "명동": "서울특별시 중구 명동",
+    "을지로": "서울특별시 중구 을지로동",
+    "을지로동": "서울특별시 중구 을지로동",
+    "회현동": "서울특별시 중구 회현동",
+    "소공동": "서울특별시 중구 소공동",
+    "종로": "서울특별시 종로구",
+    "광화문": "서울특별시 종로구",
+    "용산구": "서울특별시 용산구",
+    "노원구": "서울특별시 노원구",
+    "관악구": "서울특별시 관악구",
+    "강서구": "서울특별시 강서구",
+    "양천구": "서울특별시 양천구",
+    "광진구": "서울특별시 광진구",
+    "강북구": "서울특별시 강북구",
+    "성북구": "서울특별시 성북구",
+    "중랑구": "서울특별시 중랑구",
+    "서대문구": "서울특별시 서대문구",
+    "은평구": "서울특별시 은평구",
+    "동작구": "서울특별시 동작구",
+    "구로구": "서울특별시 구로구",
+    "금천구": "서울특별시 금천구",
+    "도봉구": "서울특별시 도봉구",
+    "강동구": "서울특별시 강동구",
+    "장안동": "서울특별시 동대문구 장안동",
+    "전농동": "서울특별시 동대문구 전농동",
+    "청량리": "서울특별시 동대문구 청량리동",
+    "왕십리": "서울특별시 성동구 왕십리동",
+    "왕십리역": "서울특별시 성동구 행당동",
+    "행당동": "서울특별시 성동구 행당동",
+    "잠실": "서울특별시 송파구 잠실동",
+    "여의도": "서울특별시 영등포구 여의도동",
+    "홍대": "서울특별시 마포구 서교동",
+    "신촌": "서울특별시 서대문구 신촌동",
+    # 경기 주요 생활권
+    "영통": "수원시 영통구",
+    "수원 영통": "수원시 영통구",
+    "분당": "성남시 분당구",
+    "판교": "성남시 분당구 판교동",
+    "일산": "고양시 일산동구",
+    "동탄": "화성시 동탄동",
+    "수지": "용인시 수지구",
+    "기흥": "용인시 기흥구",
+}
+
+STATIC_REGIONS = {
+    # 17개 광역시도 대표 거점
+    "서울특별시": {"resolved_name": "서울특별시", "admin1": "서울특별시", "admin2": None, "admin3": None, "country": "대한민국", "latitude": 37.5665, "longitude": 126.9780, "timezone": "Asia/Seoul"},
+    "부산광역시": {"resolved_name": "부산광역시", "admin1": "부산광역시", "admin2": None, "admin3": None, "country": "대한민국", "latitude": 35.1796, "longitude": 129.0756, "timezone": "Asia/Seoul"},
+    "대구광역시": {"resolved_name": "대구광역시", "admin1": "대구광역시", "admin2": None, "admin3": None, "country": "대한민국", "latitude": 35.8714, "longitude": 128.6014, "timezone": "Asia/Seoul"},
+    "인천광역시": {"resolved_name": "인천광역시", "admin1": "인천광역시", "admin2": None, "admin3": None, "country": "대한민국", "latitude": 37.4563, "longitude": 126.7052, "timezone": "Asia/Seoul"},
+    "광주광역시": {"resolved_name": "광주광역시", "admin1": "광주광역시", "admin2": None, "admin3": None, "country": "대한민국", "latitude": 35.1595, "longitude": 126.8526, "timezone": "Asia/Seoul"},
+    "대전광역시": {"resolved_name": "대전광역시", "admin1": "대전광역시", "admin2": None, "admin3": None, "country": "대한민국", "latitude": 36.3504, "longitude": 127.3845, "timezone": "Asia/Seoul"},
+    "울산광역시": {"resolved_name": "울산광역시", "admin1": "울산광역시", "admin2": None, "admin3": None, "country": "대한민국", "latitude": 35.5384, "longitude": 129.3114, "timezone": "Asia/Seoul"},
+    "세종특별자치시": {"resolved_name": "세종특별자치시", "admin1": "세종특별자치시", "admin2": None, "admin3": None, "country": "대한민국", "latitude": 36.4800, "longitude": 127.2890, "timezone": "Asia/Seoul"},
+    "경기도": {"resolved_name": "경기도", "admin1": "경기도", "admin2": None, "admin3": None, "country": "대한민국", "latitude": 37.2750, "longitude": 127.0094, "timezone": "Asia/Seoul"},
+    "강원특별자치도": {"resolved_name": "강원특별자치도", "admin1": "강원특별자치도", "admin2": None, "admin3": None, "country": "대한민국", "latitude": 37.8854, "longitude": 127.7298, "timezone": "Asia/Seoul"},
+    "충청북도": {"resolved_name": "충청북도", "admin1": "충청북도", "admin2": None, "admin3": None, "country": "대한민국", "latitude": 36.6357, "longitude": 127.4917, "timezone": "Asia/Seoul"},
+    "충청남도": {"resolved_name": "충청남도", "admin1": "충청남도", "admin2": None, "admin3": None, "country": "대한민국", "latitude": 36.6588, "longitude": 126.6728, "timezone": "Asia/Seoul"},
+    "전북특별자치도": {"resolved_name": "전북특별자치도", "admin1": "전북특별자치도", "admin2": None, "admin3": None, "country": "대한민국", "latitude": 35.8242, "longitude": 127.1480, "timezone": "Asia/Seoul"},
+    "전라남도": {"resolved_name": "전라남도", "admin1": "전라남도", "admin2": None, "admin3": None, "country": "대한민국", "latitude": 34.8161, "longitude": 126.4629, "timezone": "Asia/Seoul"},
+    "경상북도": {"resolved_name": "경상북도", "admin1": "경상북도", "admin2": None, "admin3": None, "country": "대한민국", "latitude": 36.5760, "longitude": 128.5056, "timezone": "Asia/Seoul"},
+    "경상남도": {"resolved_name": "경상남도", "admin1": "경상남도", "admin2": None, "admin3": None, "country": "대한민국", "latitude": 35.2383, "longitude": 128.6925, "timezone": "Asia/Seoul"},
+    "제주특별자치도": {"resolved_name": "제주특별자치도", "admin1": "제주특별자치도", "admin2": None, "admin3": None, "country": "대한민국", "latitude": 33.4996, "longitude": 126.5312, "timezone": "Asia/Seoul"},
+    # 주요 생활권/자치구
+    "서울특별시 중구": {"resolved_name": "중구", "admin1": "서울특별시", "admin2": "중구", "admin3": None, "country": "대한민국", "latitude": 37.5641, "longitude": 126.9979, "timezone": "Asia/Seoul"},
+    "서울특별시 중구 명동": {"resolved_name": "명동", "admin1": "서울특별시", "admin2": "중구", "admin3": "명동", "country": "대한민국", "latitude": 37.5636, "longitude": 126.9837, "timezone": "Asia/Seoul"},
+    "서울특별시 중구 을지로동": {"resolved_name": "을지로동", "admin1": "서울특별시", "admin2": "중구", "admin3": "을지로동", "country": "대한민국", "latitude": 37.5663, "longitude": 126.9926, "timezone": "Asia/Seoul"},
+    "서울특별시 종로구": {"resolved_name": "종로구", "admin1": "서울특별시", "admin2": "종로구", "admin3": None, "country": "대한민국", "latitude": 37.5730, "longitude": 126.9794, "timezone": "Asia/Seoul"},
+    "서울특별시 성동구": {"resolved_name": "성동구", "admin1": "서울특별시", "admin2": "성동구", "admin3": None, "country": "대한민국", "latitude": 37.5636, "longitude": 127.0365, "timezone": "Asia/Seoul"},
+    "서울특별시 강남구": {"resolved_name": "강남구", "admin1": "서울특별시", "admin2": "강남구", "admin3": None, "country": "대한민국", "latitude": 37.5172, "longitude": 127.0473, "timezone": "Asia/Seoul"},
+    "서울특별시 동대문구": {"resolved_name": "동대문구", "admin1": "서울특별시", "admin2": "동대문구", "admin3": None, "country": "대한민국", "latitude": 37.5744, "longitude": 127.0396, "timezone": "Asia/Seoul"},
+    "서울특별시 동대문구 장안동": {"resolved_name": "장안동", "admin1": "서울특별시", "admin2": "동대문구", "admin3": "장안동", "country": "대한민국", "latitude": 37.5707, "longitude": 127.0682, "timezone": "Asia/Seoul"},
+    "서울특별시 동대문구 전농동": {"resolved_name": "전농동", "admin1": "서울특별시", "admin2": "동대문구", "admin3": "전농동", "country": "대한민국", "latitude": 37.5787, "longitude": 127.0471, "timezone": "Asia/Seoul"},
+    "서울특별시 동대문구 청량리동": {"resolved_name": "청량리동", "admin1": "서울특별시", "admin2": "동대문구", "admin3": "청량리동", "country": "대한민국", "latitude": 37.5863, "longitude": 127.0446, "timezone": "Asia/Seoul"},
+    "서울특별시 성동구 왕십리동": {"resolved_name": "왕십리동", "admin1": "서울특별시", "admin2": "성동구", "admin3": "왕십리동", "country": "대한민국", "latitude": 37.5618, "longitude": 127.0372, "timezone": "Asia/Seoul"},
+    "서울특별시 성동구 행당동": {"resolved_name": "행당동", "admin1": "서울특별시", "admin2": "성동구", "admin3": "행당동", "country": "대한민국", "latitude": 37.5587, "longitude": 127.0351, "timezone": "Asia/Seoul"},
+    "수원시 영통구": {"resolved_name": "영통구", "admin1": "경기도", "admin2": "수원시 영통구", "admin3": None, "country": "대한민국", "latitude": 37.2595, "longitude": 127.0464, "timezone": "Asia/Seoul"},
+    "성남시 분당구": {"resolved_name": "분당구", "admin1": "경기도", "admin2": "성남시 분당구", "admin3": None, "country": "대한민국", "latitude": 37.3826, "longitude": 127.1187, "timezone": "Asia/Seoul"},
+    "성남시 분당구 판교동": {"resolved_name": "판교동", "admin1": "경기도", "admin2": "성남시 분당구", "admin3": "판교동", "country": "대한민국", "latitude": 37.3943, "longitude": 127.1112, "timezone": "Asia/Seoul"},
+    "서울특별시 송파구 잠실동": {"resolved_name": "잠실동", "admin1": "서울특별시", "admin2": "송파구", "admin3": "잠실동", "country": "대한민국", "latitude": 37.5110, "longitude": 127.0811, "timezone": "Asia/Seoul"},
+    "서울특별시 마포구 서교동": {"resolved_name": "서교동", "admin1": "서울특별시", "admin2": "마포구", "admin3": "서교동", "country": "대한민국", "latitude": 37.5563, "longitude": 126.9229, "timezone": "Asia/Seoul"},
+    "서울특별시 영등포구 여의도동": {"resolved_name": "여의도동", "admin1": "서울특별시", "admin2": "영등포구", "admin3": "여의도동", "country": "대한민국", "latitude": 37.5216, "longitude": 126.9242, "timezone": "Asia/Seoul"},
+    "서울특별시 서대문구 신촌동": {"resolved_name": "신촌동", "admin1": "서울특별시", "admin2": "서대문구", "admin3": "신촌동", "country": "대한민국", "latitude": 37.5598, "longitude": 126.9423, "timezone": "Asia/Seoul"},
+    "서울특별시 성동구 성수동": {"resolved_name": "성수동", "admin1": "서울특별시", "admin2": "성동구", "admin3": "성수동", "country": "대한민국", "latitude": 37.5445, "longitude": 127.0560, "timezone": "Asia/Seoul"},
+}
+
+DISTRICT_FALLBACKS = {
+    "명동": "서울특별시 중구 명동",
+    "을지로": "서울특별시 중구 을지로동",
+    "을지로동": "서울특별시 중구 을지로동",
+    "회현동": "서울특별시 중구",
+    "소공동": "서울특별시 중구",
+    "중구": "서울특별시 중구",
+    "서울 중구": "서울특별시 중구",
+    "장안동": "서울특별시 동대문구 장안동",
+    "전농동": "서울특별시 동대문구 전농동",
+    "청량리동": "서울특별시 동대문구 청량리동",
+    "왕십리동": "서울특별시 성동구 왕십리동",
+    "행당동": "서울특별시 성동구 행당동",
+    "동대문구": "서울특별시 동대문구",
+}
+
+GRADE_ORDER = {"좋음": 0, "보통": 1, "나쁨": 2, "매우나쁨": 3, "정보 없음": -1}
+WEATHER_CODES = {0: "맑음", 1: "대체로 맑음", 2: "부분적으로 흐림", 3: "흐림", 45: "안개", 48: "서리 안개", 51: "이슬비", 53: "이슬비", 55: "강한 이슬비", 61: "비", 63: "비", 65: "강한 비", 71: "눈", 73: "눈", 75: "강한 눈", 80: "소나기", 81: "소나기", 82: "강한 소나기", 95: "뇌우"}

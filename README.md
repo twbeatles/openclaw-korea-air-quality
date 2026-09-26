@@ -161,7 +161,10 @@ openclaw-korea-air-quality/
 ├── SKILL.md                 # OpenClaw 스킬 정의 및 오퍼레이터 가이드
 ├── README.md                # 저장소 전체 안내 문서
 ├── scripts/
-│   └── air_quality.py       # 핵심 실행 CLI 엔진
+│   └── air_quality.py       # 하위 호환 CLI 진입점 (구 호출 그대로 동작)
+├── src/airquality/          # SOLID 분리 패키지 본체 (constants/paths/store/http/parsing/grading/geo/providers/services/cli/app)
+├── tests/
+│   └── test_cli_parity.py   # 리팩토링 동등성 테스트
 ├── references/              # API 기획 및 국내 데이터 규격 문서
 │   ├── api-and-product-plan.md
 │   ├── domestic-api-notes.md
@@ -190,6 +193,12 @@ python scripts/air_quality.py now 서울 --json
 python scripts/air_quality.py morning-brief "서울 중구"
 python scripts/air_quality.py compare 서울 수원 부산
 python scripts/air_quality.py cron-plan morning-brief testuser --region "서울 중구" --json
+```
+
+리팩토링 동등성 단위 테스트(네트워크 불필요):
+
+```bash
+python -m pytest tests/ -q
 ```
 
 ---

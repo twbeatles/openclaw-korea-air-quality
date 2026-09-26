@@ -123,6 +123,6 @@ description: 대한민국 대기질(미세먼지, 초미세먼지, 오존, 통�
 
 데이터 소스 후보, 권장 MVP 범위, 위치 반영 전략, 알림 설계를 정리한 문서다. 이 스킬을 확장하거나 실제 API를 연결할 때 먼저 읽는다.
 
-### scripts/air_quality.py
+### scripts/air_quality.py (진입점) · src/airquality/ (구현 본체)
 
-실행 가능한 CLI다. Open-Meteo 및 한국환경공단 에어코리아(`ArpltnInforInqireSvc`, ver 1.3) 기반으로 한국 지역 대기질 조회가 가능하며, 동/구/시 단위 4단계 계층형 측정소 매칭, 전국 17개 시도 거점 지원, 기본 지역/좌표 저장, 여러 지역 비교, 알림 점검(`alert-check`), 중복 알림 방지, 오존/통합대기(KHAI) 지표 등급화, 날씨 결합 아침 브리핑, 환경 자동 감지 OpenClaw cron 초안 생성을 지원한다. `--provider airkorea` 와 `setup-provider` 설정 흐름을 통해 국내 실측 API와 해외 기상 API를 유연하게 전환할 수 있다.
+실행 가능한 CLI다. Open-Meteo 및 한국환경공단 에어코리아(`ArpltnInforInqireSvc`, ver 1.3) 기반으로 한국 지역 대기질 조회가 가능하며, 동/구/시 단위 4단계 계층형 측정소 매칭, 전국 17개 시도 거점 지원, 기본 지역/좌표 저장, 여러 지역 비교, 알림 점검(`alert-check`), 중복 알림 방지, 오존/통합대기(KHAI) 지표 등급화, 날씨 결합 아침 브리핑, 환경 자동 감지 OpenClaw cron 초안 생성을 지원한다. `--provider airkorea` 와 `setup-provider` 설정 흐름을 통해 국내 실측 API와 해외 기상 API를 유연하게 전환할 수 있다. 구현 본체는 `src/airquality/` 패키지(상수·저장소·파싱·등급·지역해석·providers·services·cli 분리)에 있으며, `scripts/air_quality.py` 는 하위 호환 진입점이라 기존 호출 방식이 그대로 동작한다.
