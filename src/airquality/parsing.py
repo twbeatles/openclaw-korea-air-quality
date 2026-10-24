@@ -111,12 +111,16 @@ def parse_shared_location(raw: str | None) -> Dict[str, Any] | None:
             for candidate in candidates:
                 if not isinstance(candidate, dict):
                     continue
-                nested = candidate.get("location") if isinstance(candidate.get("location"), dict) else candidate
+                loc = candidate.get("location")
+                nested = loc if isinstance(loc, dict) else candidate
+                if not isinstance(nested, dict):
+                    continue
                 lat = nested.get("latitude") or nested.get("lat")
                 lon = nested.get("longitude") or nested.get("lon") or nested.get("lng")
                 if lat is not None and lon is not None:
                     norm_lat, norm_lon = normalize_lat_lon(float(lat), float(lon))
-                    return {"lat": norm_lat, "lon": norm_lon, "label": nested.get("label") or payload.get("label")}
+                    label_val = nested.get("label") or payload.get("label")
+                    return {"lat": norm_lat, "lon": norm_lon, "label": label_val}
     except Exception:
         pass
     # 지도 쿼리 파라미터 (q=lat,lon 또는 ?c=zoom,lon,lat 등)

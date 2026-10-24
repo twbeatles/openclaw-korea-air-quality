@@ -89,7 +89,10 @@ def test_airkorea_station_hierarchy():
 
 def test_parser_has_all_subcommands():
     parser = build_parser()
-    choices = parser._subparsers._group_actions[0].choices
+    subparsers = getattr(parser, "_subparsers", None)
+    assert subparsers is not None
+    group_actions = getattr(subparsers, "_group_actions", [])
+    choices = getattr(group_actions[0], "choices", {})
     assert set(choices) == {
         "now", "morning-brief", "resolve-region", "compare", "save-default",
         "clear-default", "save-location", "show-default", "setup-provider",
@@ -128,6 +131,8 @@ def test_store_roundtrip_isolated(tmp_path, monkeypatch):
 def test_compat_shim_exposes_original_symbols():
     spec = importlib.util.spec_from_file_location(
         "compat_air_quality", REPO_ROOT / "scripts" / "air_quality.py")
+    assert spec is not None
+    assert spec.loader is not None
     shim = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(shim)
     for name in ["main", "build_parser", "geocode_region", "fetch_air_quality",

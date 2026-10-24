@@ -7,12 +7,12 @@ from .cli.parser import build_parser
 
 
 def ensure_utf8_stdio() -> None:
-    if sys.stdout and hasattr(sys.stdout, "reconfigure"):
-        try:
-            sys.stdout.reconfigure(encoding="utf-8")
-            sys.stderr.reconfigure(encoding="utf-8")
-        except Exception:
-            pass
+    for stream in (sys.stdout, sys.stderr):
+        if stream and hasattr(stream, "reconfigure"):
+            try:
+                getattr(stream, "reconfigure")(encoding="utf-8")
+            except Exception:
+                pass
 
 
 def main(argv: list[str] | None = None) -> int:
