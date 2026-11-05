@@ -25,3 +25,10 @@ __*.txt
 
 # Tool index
 .codegraph/
+
+# Local AI agent working files (machine-local, do not commit)
+.agents/
+.claude/
+.grok/
+.specify/
+AGENTS.md
