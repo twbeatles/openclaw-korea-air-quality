@@ -10,7 +10,7 @@ def ensure_utf8_stdio() -> None:
     for stream in (sys.stdout, sys.stderr):
         if stream and hasattr(stream, "reconfigure"):
             try:
-                getattr(stream, "reconfigure")(encoding="utf-8")
+                getattr(stream, "reconfigure")(encoding="utf-8")  # noqa: B009 -- TextIO 스텁에 없음; hasattr 가드+try로 런타임 안전
             except Exception:
                 pass
 
