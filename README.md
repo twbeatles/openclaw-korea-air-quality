@@ -3,7 +3,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Zero Dependency](https://img.shields.io/badge/dependencies-0%20(stdlib%20only)-orange.svg)]()
-[![Tests](https://img.shields.io/badge/tests-8%20passed-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/tests-25%20passed-brightgreen.svg)]()
 [![OpenClaw](https://img.shields.io/badge/OpenClaw-AgentSkill-purple.svg)](https://openclaw.ai)
 
 > **대한민국 전역의 실시간 대기질(초미세먼지·미세먼지·오존·통합대기), 위치 기반 측정소 자동 매칭, 기상 결합 아침 브리핑, 임계치 초과 알림 및 Cron 자동화를 제공하는 OpenClaw 공식 올인원 AgentSkill & CLI 엔진**
@@ -45,6 +45,7 @@
 | **외부 의존성** | `requests`, `bs4` 등 외부 패키지 다수 설치 | **Python 3 표준 라이브러리(`urllib`)만으로 100% 동작** |
 | **측정소 매칭** | 동 이름 미일치 시 엉뚱한 시도 첫 번째 측정소 할당 | **4단계 지능형 계층 매칭 (동 ➔ 구 ➔ 행정동 ➔ 시도 유효소)** |
 | **공공데이터 인증** | Encoding/Decoding 키 불일치 시 401 Unauthorized 에러 | **Unquoted/Raw 4중 자동 재시도 + XML 에러 상세 파싱** |
+| **측정소 복구** | 시도 조회 실패·점검 시 빈 결과 반환 | **측정소 직접 조회 자동 폴백 + 최신 유효 레코드 선택** |
 | **위치 인식** | 오직 위경도 숫자만 지원 | **자연어 지명, 좌표, (경도, 위도) 반전, 지도 공유 링크 자동 인식** |
 | **알림 & 크론** | 단순 1회성 스크립트 | **중복 알림 억제 상태 머신 + OpenClaw 네이티브 Cron Plan 지원** |
 | **에러 내성** | 1개 도시 에러 시 전체 중단 | **복수 도시 조회 시 부분 오류 격리 및 정상 결과 무중단 반환** |
@@ -228,7 +229,7 @@ python scripts/air_quality.py setup-provider airkorea --airkorea-api-key "발급
 # Open-Meteo로 기본 프로바이더 전환
 python scripts/air_quality.py setup-provider openmeteo
 
-# 현재 활성화된 프로바이더 및 키 등록 상태 확인 (키는 보안 마스킹 처리)
+# 현재 활성화된 프로바이더 및 키 등록 상태 확인 (키는 보안 마스킹 처리, 지원 목록 포함)
 python scripts/air_quality.py show-config --json
 ```
 

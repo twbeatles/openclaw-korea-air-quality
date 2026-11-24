@@ -3,11 +3,13 @@ from __future__ import annotations
 
 import argparse
 
+from ..providers import factory as providers_factory
 from . import commands
 
 
 def add_provider_args(p: argparse.ArgumentParser) -> None:
-    p.add_argument("--provider", choices=["openmeteo", "airkorea"])
+    # 선택지는 레지스트리에서 파생: 신규 provider 등록 시 자동 반영
+    p.add_argument("--provider", choices=list(providers_factory.PROVIDER_NAMES))
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -69,7 +71,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=commands.cmd_show_default)
 
     p = sub.add_parser("setup-provider", help="기본 provider 및 국내 API 키 저장")
-    p.add_argument("provider", choices=["openmeteo", "airkorea"])
+    p.add_argument("provider", choices=list(providers_factory.PROVIDER_NAMES))
     p.add_argument("--airkorea-api-key")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=commands.cmd_setup_provider)

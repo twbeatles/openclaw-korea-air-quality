@@ -47,6 +47,21 @@ def build_summary(region: Dict[str, Any], air: Dict[str, Any], source: str) -> D
     }
     if khai_val is not None or khai_grade is not None:
         summary["khai"] = {"value": khai_val, "grade": khai_grade}
+    pollutants = air.get("pollutants")
+    if isinstance(pollutants, dict) and pollutants:
+        summary["pollutants"] = pollutants
+    aqi: Dict[str, Any] = {}
+    if air.get("us_aqi") is not None:
+        aqi["us_aqi"] = air.get("us_aqi")
+    if air.get("european_aqi") is not None:
+        aqi["european_aqi"] = air.get("european_aqi")
+    if aqi:
+        summary["aqi"] = aqi
+    data_flags = air.get("data_flags")
+    if isinstance(data_flags, dict) and data_flags:
+        summary["data_quality"] = {"flags": data_flags}
+    if air.get("mang_name"):
+        summary["network"] = air.get("mang_name")
     return summary
 
 
@@ -70,6 +85,30 @@ def render_text(summary: Dict[str, Any]) -> str:
     khai = summary.get("khai")
     if khai and (khai.get("value") is not None or khai.get("grade")):
         lines.append(f"- 통합대기(KHAI): {khai.get('value')} · {khai.get('grade')}")
+
+    aqi = summary.get("aqi") or {}
+    aqi_parts = []
+    if aqi.get("us_aqi") is not None:
+        aqi_parts.append(f"US {aqi.get('us_aqi')}")
+    if aqi.get("european_aqi") is not None:
+        aqi_parts.append(f"EU {aqi.get('european_aqi')}")
+    if aqi_parts:
+        lines.append(f"- 대기질지수(AQI): {', '.join(aqi_parts)}")
+
+    pollutants = summary.get("pollutants") or {}
+    pollutant_parts = []
+    for key, label in (("so2", "아황산가스"), ("co", "일산화탄소"), ("no2", "이산화질소")):
+        entry = pollutants.get(key)
+        if isinstance(entry, dict) and entry.get("value") is not None:
+            grade = f" · {entry.get('grade')}" if entry.get("grade") else ""
+            pollutant_parts.append(f"{label} {entry.get('value')}{grade}")
+        elif entry is not None and not isinstance(entry, dict):
+            pollutant_parts.append(f"{label} {entry}")
+    for key, label in (("carbon_monoxide", "CO"), ("nitrogen_dioxide", "NO2"), ("sulphur_dioxide", "SO2")):
+        if pollutants.get(key) is not None:
+            pollutant_parts.append(f"{label} {pollutants.get(key)} μg/m³")
+    if pollutant_parts:
+        lines.append(f"- 기타 대기오염: {', '.join(pollutant_parts)}")
 
     lines.extend([
         f"- 종합 판단: {summary['overall_grade']}",

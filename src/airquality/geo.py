@@ -58,13 +58,20 @@ class RegionResolver:
         return resolved
 
     def nearest(self, lat: float, lon: float) -> Dict[str, Any]:
-        cache = self._load_cache().get("regions", {})
-        if not cache:
-            cache = {key: {"query": key, **value} for key, value in STATIC_REGIONS.items()}
+        # 정적 거점을 항상 포함하고 캐시가 있으면 덮어쓴다.
+        # (캐시에 1~2개만 있을 때도 전체 후보에서 최인접을 찾도록)
+        merged: Dict[str, Dict[str, Any]] = {key: {"query": key, **value} for key, value in STATIC_REGIONS.items()}
+        cached = self._load_cache().get("regions", {}) or {}
+        for key, value in cached.items():
+            if isinstance(value, dict) and value.get("latitude") is not None and value.get("longitude") is not None:
+                merged[key] = value
         best_item = None
         best_distance = float("inf")
-        for item in cache.values():
-            distance = math.hypot(float(item["latitude"]) - lat, float(item["longitude"]) - lon)
+        for item in merged.values():
+            try:
+                distance = math.hypot(float(item["latitude"]) - lat, float(item["longitude"]) - lon)
+            except (TypeError, ValueError):
+                continue
             if distance < best_distance:
                 best_distance = distance
                 best_item = item

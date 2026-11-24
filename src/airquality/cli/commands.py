@@ -49,7 +49,9 @@ def cmd_morning_brief(args: argparse.Namespace) -> int:
 def cmd_alert_add(args: argparse.Namespace) -> int:
     rules_payload = store_module.load_alert_rules()
     rules = rules_payload.setdefault("rules", [])
-    rule = {"id": len(rules) + 1, "user": args.user, "region": args.region, "metric": args.metric, "threshold": args.threshold, "created_at": datetime.now().isoformat(timespec="seconds")}
+    # 삭제 후 재등록해도 ID가 겹치지 않도록 max+1 채번
+    existing_ids = [r.get("id") for r in rules if isinstance(r.get("id"), int)]
+    rule = {"id": (max(existing_ids) + 1) if existing_ids else 1, "user": args.user, "region": args.region, "metric": args.metric, "threshold": args.threshold, "created_at": datetime.now().isoformat(timespec="seconds")}
     rules.append(rule)
     store_module.save_alert_rules(rules_payload)
     print(json.dumps(rule, ensure_ascii=False, indent=2) if args.json else f"알림 규칙 저장 완료: {args.user} / {args.region} / {args.metric} / {args.threshold} 이상")
@@ -219,7 +221,8 @@ def cmd_show_config(args: argparse.Namespace) -> int:
     redacted = dict(cfg)
     if redacted.get("airkorea_api_key"):
         redacted["airkorea_api_key"] = "***configured***"
-    print(json.dumps(redacted, ensure_ascii=False, indent=2) if args.json else f"provider={redacted.get('provider')} airkorea_api_key={redacted.get('airkorea_api_key')}")
+    redacted["supported_providers"] = list(providers_factory.PROVIDER_NAMES)
+    print(json.dumps(redacted, ensure_ascii=False, indent=2) if args.json else f"provider={redacted.get('provider')} airkorea_api_key={redacted.get('airkorea_api_key')} supported={','.join(providers_factory.PROVIDER_NAMES)}")
     return 0
 
 

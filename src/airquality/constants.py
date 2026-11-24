@@ -9,7 +9,12 @@ OPENMETEO_GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 OPENMETEO_AIR_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
 OPENMETEO_WEATHER_URL = "https://api.open-meteo.com/v1/forecast"
 
-AIRKOREA_CTPRVN_URL = "https://apis.data.go.kr/B552584/ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty"
+AIRKOREA_BASE_URL = "https://apis.data.go.kr/B552584/ArpltnInforInqireSvc"
+AIRKOREA_OPERATIONS = {
+    "sido": "getCtprvnRltmMesureDnsty",
+    "station": "getMsrstnAcctoRltmMesureDnsty",
+}
+AIRKOREA_CTPRVN_URL = f"{AIRKOREA_BASE_URL}/{AIRKOREA_OPERATIONS['sido']}"
 
 REGION_ALIASES = {
     "서울": "서울특별시",
@@ -145,3 +150,27 @@ DISTRICT_FALLBACKS = {
 
 GRADE_ORDER = {"좋음": 0, "보통": 1, "나쁨": 2, "매우나쁨": 3, "정보 없음": -1}
 WEATHER_CODES = {0: "맑음", 1: "대체로 맑음", 2: "부분적으로 흐림", 3: "흐림", 45: "안개", 48: "서리 안개", 51: "이슬비", 53: "이슬비", 55: "강한 이슬비", 61: "비", 63: "비", 65: "강한 비", 71: "눈", 73: "눈", 75: "강한 눈", 80: "소나기", 81: "소나기", 82: "강한 소나기", 95: "뇌우"}
+
+# --- 외부 API 운영 메타 (한 곳에서 관리: 엔드포인트/버전/재시도) ---
+# data.go.kr `한국환경공단_에어코리아_대기오염정보` (2026-06-30 명세 기준):
+# getCtprvnRltmMesureDnsty(sidoName 필수) / getMsrstnAcctoRltmMesureDnsty(stationName+dataTerm 필수).
+# Open-Meteo air-quality/forecast/geocoding 파라미터는 실측 응답 기준으로 유지된다.
+HTTP_USER_AGENT = "OpenClaw-Korea-Air-Quality/0.7"
+HTTP_TIMEOUT_SECONDS = 20
+HTTP_MAX_RETRIES = 3
+HTTP_RETRY_BACKOFF_SECONDS = 1.0
+# 재시도하지 않는 HTTP 상태 (인증/요청 오류는 재시도해도 결과가 같음)
+HTTP_NO_RETRY_STATUS = frozenset({400, 401, 403, 404})
+
+# 신버전 우선, 구버전 폴백 (포털 게이트웨이 동기화 지연 대응)
+AIRKOREA_VERSIONS = ("1.3", "1.0")
+# 경기 등 대형 시도는 측정소가 100개를 넘으므로 여유 있게 조회
+AIRKOREA_NUM_ROWS = 200
+AIRKOREA_PAGE_NO = 1
+AIRKOREA_STATION_DATA_TERM = "DAILY"
+AIRKOREA_STATION_NUM_ROWS = 5
+
+# Open-Meteo 요청 필드 (상류 스키마 변경 시 여기만 고치면 전역 반영)
+OPENMETEO_AIR_CURRENT_FIELDS = "pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone,us_aqi,european_aqi"
+OPENMETEO_WEATHER_CURRENT_FIELDS = "temperature_2m,apparent_temperature,weather_code"
+OPENMETEO_WEATHER_DAILY_FIELDS = "temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code"

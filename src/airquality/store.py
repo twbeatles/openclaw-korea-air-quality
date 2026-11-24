@@ -16,7 +16,25 @@ def read_json(path: Path, default: Dict[str, Any]) -> Dict[str, Any]:
     paths.ensure_data_dir()
     if not path.exists():
         return default
-    return json.loads(path.read_text(encoding="utf-8"))
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return default
+    try:
+        data = json.loads(text)
+    except (json.JSONDecodeError, UnicodeDecodeError, ValueError):
+        _backup_corrupt_file(path)
+        return default
+    return data if isinstance(data, dict) else default
+
+
+def _backup_corrupt_file(path: Path) -> None:
+    """깨진 설정 파일은 .bak 으로 보존하고 기본값으로 복구 (데이터 손실 방지)."""
+    try:
+        backup = path.with_name(path.name + ".bak")
+        backup.write_bytes(path.read_bytes())
+    except OSError:
+        pass
 
 
 def write_json(path: Path, payload: Dict[str, Any]) -> None:
